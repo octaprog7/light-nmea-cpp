@@ -88,7 +88,7 @@ void check_invariants(const NMEAData &d) {
     if (!d.lon.is_valid()) fail("longitude out of valid range");
   }
   // Скорость и курс не могут быть отрицательными (поле без знака по NMEA).
-  if (d.speed_kn_x100.raw < 0) fail("negative speed_kn");
+  if (d.speed_kn_x1000.raw < 0) fail("negative speed_kn");
   if (d.course_true.raw < 0) fail("negative course_true");
   if (d.course_mag.raw < 0) fail("negative course_mag");
   if (d.time_utc > 235959u) fail("time_utc out of range");

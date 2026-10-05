@@ -70,3 +70,9 @@ __pycache__/
 *~
 .DS_Store
 Thumbs.db
+
+# CMake и clangd
+compile_commands.json
+.clangd/
+
+*.pdf

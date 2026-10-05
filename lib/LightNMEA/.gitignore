@@ -1,11 +1,15 @@
 # Build directories
-build-release/
+build/
+build-*/
 out/
-.ccache/
+.cache/
+.vscode/
+.pio/
 
 # IDE and OS files
 .vscode/
 .cache/
+
 *.swp
 *.swo
 *~
@@ -21,3 +25,20 @@ out/
 # Python scripts cache
 __pycache__/
 *.pyc
+
+# Логи и временные файлы
+*.log
+*.csv
+
+# Документация и черновики
+*.pdf
+plans/
+
+# IDE и системные файлы
+.idea/
+.DS_Store
+Thumbs.db
+
+# CMake и clangd
+compile_commands.json
+.clangd/

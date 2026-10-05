@@ -27,6 +27,7 @@
 #if defined(__unix__) || defined(__APPLE__)
 
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -102,6 +103,33 @@ public:
       ::close(fd_);
       fd_ = -1;
     }
+  }
+
+  // Сбрасывает (выбрасывает) все непрочитанные байты из входного буфера.
+  // Полезно после смены скорости/настройки линии или для очистки USB-CDC.
+  void flush_input() noexcept {
+    if (fd_ >= 0)
+      ::tcflush(fd_, TCIFLUSH);
+  }
+
+  // Управляет сигналами DTR/RTS (например, для "пробуждения" USB-CDC на
+  // RP2040: dtr=false, rts=false -> пауза -> dtr=true, rts=true).
+  // Возвращает true при успехе.
+  bool set_dtr_rts(bool dtr, bool rts) noexcept {
+    if (fd_ < 0)
+      return false;
+    int status = 0;
+    if (::ioctl(fd_, TIOCMGET, &status) != 0)
+      return false;
+    if (dtr)
+      status |= TIOCM_DTR;
+    else
+      status &= ~TIOCM_DTR;
+    if (rts)
+      status |= TIOCM_RTS;
+    else
+      status &= ~TIOCM_RTS;
+    return ::ioctl(fd_, TIOCMSET, &status) == 0;
   }
 
   [[nodiscard]] bool is_open() const noexcept { return fd_ >= 0; }

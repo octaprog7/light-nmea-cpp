@@ -33,15 +33,13 @@ target_include_directories(light_nmea INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/incl
 add_executable(test_parser tests/test_parser.cpp)
 target_link_libraries(test_parser PRIVATE light_nmea)
 
-# Бенчмарк
-add_executable(bench_parser benchmarks/bench_parser.cpp)
-target_link_libraries(bench_parser PRIVATE light_nmea)
-
 # Включаем тестирование
 enable_testing()
 add_test(NAME ParserTests COMMAND test_parser)
 
-# Бенчмарк с nav_gen
+# Бенчмарк с nav_gen (самодостаточный). bench_parser требует сторонние
+# реализации (minmea/TinyGPSPlus/libnmea) и собирается отдельным проектом:
+#   benchmarks/build.sh  (см. benchmarks/CMakeLists.txt)
 add_executable(bench_nav_gen benchmarks/bench_nav_gen.cpp)
 target_link_libraries(bench_nav_gen PRIVATE light_nmea)
 
@@ -60,6 +58,20 @@ if(UNIX)
     # Linux/POSIX демон: SerialStream -> NMEAStreamReader -> Parser -> CSV
     add_executable(gps_daemon examples/gps_daemon.cpp)
     target_link_libraries(gps_daemon PRIVATE light_nmea)
+
+    # GNSS Dashboard (TUI): SerialPort -> SerialParser (CSV / NMEA-0183 /
+    # SYS_MSG) -> curses. Требуется ncursesw (пакет libncurses-dev).
+    find_library(GNSS_NCURSESW_LIB NAMES ncursesw)
+    find_path(GNSS_NCURSESW_INCLUDE NAMES ncursesw/curses.h)
+    if(GNSS_NCURSESW_LIB AND GNSS_NCURSESW_INCLUDE)
+        add_executable(gnss_dashboard examples/gnss_dashboard.cpp)
+        target_link_libraries(gnss_dashboard PRIVATE light_nmea ${GNSS_NCURSESW_LIB})
+        target_include_directories(gnss_dashboard PRIVATE ${GNSS_NCURSESW_INCLUDE})
+        target_compile_definitions(gnss_dashboard PRIVATE _XOPEN_SOURCE_EXTENDED=1)
+        message(STATUS "gnss_dashboard: built with ncursesw")
+    else()
+        message(STATUS "gnss_dashboard: skipped (ncursesw not found; run: sudo apt install libncurses-dev)")
+    endif()
 endif()
 
 # Unit-тест для NMEAStreamReader
@@ -70,3 +82,4 @@ add_test(NAME StreamReaderTests COMMAND test_stream_reader)
 # Unit-тест для функций форматирования
 add_executable(test_formatter tests/test_formatter.cpp)
 target_link_libraries(test_formatter PRIVATE light_nmea)
+add_test(NAME FormatterTests COMMAND test_formatter)

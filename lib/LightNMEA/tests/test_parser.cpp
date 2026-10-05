@@ -4,7 +4,9 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <iostream>
+#include <string>
 
 using namespace light_nmea;
 
@@ -21,6 +23,15 @@ uint8_t nmea_crc(std::string_view line) noexcept {
     crc ^= static_cast<uint8_t>(c);
   }
   return crc;
+}
+
+// Формирует полную NMEA-строку, дописывая корректную контрольную сумму.
+std::string with_crc(std::string_view body) {
+  char buf[160];
+  const int len = std::snprintf(buf, sizeof(buf), "%s*%02X",
+                                std::string(body).c_str(),
+                                static_cast<unsigned>(nmea_crc(body)));
+  return std::string(buf, static_cast<size_t>(len));
 }
 
 int hex_val(char c) noexcept {
@@ -81,8 +92,31 @@ void test_basic_gga() {
   assert(data.satellites == 8);
   assert(approx_equal(data.hdop_value(), 0.9));
   assert(approx_equal(data.altitude_m(), 545.4));
+  // B1: время из поля 1 GGA (поток без RMC/GLL).
+  assert(data.time_utc == 123519);
 
   std::cout << " test_basic_gga passed\n";
+}
+
+void test_negative_altitude() {
+  // NMEA-0183, Таблица 6, примечание 2: "-" (HEX 2D) - первый символ
+  // числового поля, если значение отрицательное. Высота над MSL в GGA
+  // законно бывает отрицательной. Регрессия: раньше parse_value_e2()
+  // терял знак, и "-545.4" давало +545.4 м.
+  Parser parser;
+  std::string_view nmea =
+      "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,-545.4,M,47.0,M,,*62";
+  (void)nmea;
+
+  assert(parser.parse_line(nmea));
+  const auto &data = parser.data();
+  (void)data;
+
+  assert(data.valid == true);
+  assert(data.altitude_cm == -54540); // масштаб x100: -545.4 м
+  assert(approx_equal(data.altitude_m(), -545.4));
+
+  std::cout << "  test_negative_altitude passed\n";
 }
 
 void test_invalid_crc() {
@@ -112,6 +146,136 @@ void test_constellation_filter() {
   (void)nmea_gps;
   assert(parser.parse_line(nmea_gps));
   std::cout << " test_constellation_filter passed\n";
+}
+
+void test_rmc_mode_indicator() {
+  // FAA Mode Indicator (NMEA 2.3+, по документации gpsd):
+  // F = RTK Float, R = RTK Integer (fixed integers).
+  Parser parser;
+
+  const auto line_f = with_crc(
+      "$GNRMC,001031.00,A,4404.13993,N,12118.86023,W,0.146,,100117,,,F");
+  assert(parser.parse_line(line_f));
+  assert(parser.data().valid == true);
+  assert(parser.data().fix_mode == FixMode::RTKFloat);
+
+  const auto line_r = with_crc(
+      "$GNRMC,001031.00,A,4404.13993,N,12118.86023,W,0.146,,100117,,,R");
+  assert(parser.parse_line(line_r));
+  assert(parser.data().fix_mode == FixMode::RTKFixed);
+
+  // P = Precise (NMEA 4.00+).
+  const auto line_p = with_crc(
+      "$GNRMC,001031.00,A,4404.13993,N,12118.86023,W,0.146,,100117,,,P");
+  assert(parser.parse_line(line_p));
+  assert(parser.data().fix_mode == FixMode::Precise);
+
+  std::cout << "  test_rmc_mode_indicator passed\n";
+}
+
+void test_gga_quality_6_estimated() {
+  // GGA GPS Quality 6 = estimated (dead reckoning): при trust_gga_fix = true
+  // должен давать FixMode::Estimated (gpsd / NMEA 2.3+).
+  Parser::Config cfg;
+  cfg.trust_gga_fix = true;
+  Parser parser(cfg);
+
+  const auto line = with_crc(
+      "$GPGGA,123519,4807.038,N,01131.000,E,6,08,0.9,545.4,M,47.0,M,,");
+  assert(parser.parse_line(line));
+  assert(parser.data().valid == true);
+  assert(parser.data().fix_mode == FixMode::Estimated);
+
+  // Quality 8 (simulation), 7 (manual input), 3 (PPS) - валидные фиксы
+  // с корректной меткой режима (C1).
+  const auto line_sim = with_crc(
+      "$GPGGA,123519,4807.038,N,01131.000,E,8,08,0.9,545.4,M,47.0,M,,");
+  assert(parser.parse_line(line_sim));
+  assert(parser.data().valid == true);
+  assert(parser.data().fix_mode == FixMode::Simulator);
+
+  const auto line_man = with_crc(
+      "$GPGGA,123519,4807.038,N,01131.000,E,7,08,0.9,545.4,M,47.0,M,,");
+  assert(parser.parse_line(line_man));
+  assert(parser.data().valid == true);
+  assert(parser.data().fix_mode == FixMode::ManualInput);
+
+  const auto line_pps = with_crc(
+      "$GPGGA,123519,4807.038,N,01131.000,E,3,08,0.9,545.4,M,47.0,M,,");
+  assert(parser.parse_line(line_pps));
+  assert(parser.data().valid == true);
+  assert(parser.data().fix_mode == FixMode::PPS);
+
+  std::cout << "  test_gga_quality_6_estimated passed\n";
+}
+
+void test_speed_precision_e3() {
+  // B4: скорость хранится в тысячных узла - "0.146" (пример gpsd) не теряет
+  // точность, как раньше с сотыми (0.146 -> 0.14).
+  Parser parser;
+  const auto line = with_crc(
+      "$GNRMC,001031.00,A,4404.13993,N,12118.86023,W,0.146,,100117,,,A");
+  assert(parser.parse_line(line));
+  assert(parser.data().speed_kn_x1000.raw == 146);
+  assert(approx_equal(parser.data().speed_knots(), 0.146, 1e-6));
+
+  std::cout << "  test_speed_precision_e3 passed\n";
+}
+
+void test_coordinates_no_decimal_point() {
+  // A2: десятичная точка опциональна (Таблица 6). "4807" = 48 deg 07',
+  // "01131" = 11 deg 31'.
+  Parser parser;
+  const auto line = with_crc(
+      "$GPRMC,123519,A,4807,N,01131,E,022.4,084.4,230394,003.1,W");
+  assert(parser.parse_line(line));
+  assert(approx_equal(parser.data().latitude_deg(), 48.0 + 7.0 / 60.0, 1e-5));
+  assert(approx_equal(parser.data().longitude_deg(), 11.0 + 31.0 / 60.0, 1e-5));
+
+  // Менее 4 целых цифр без точки - невалидно (ddmm минимум).
+  const auto short_field = with_crc(
+      "$GPRMC,123519,A,807,N,01131,E,022.4,084.4,230394,003.1,W");
+  assert(!parser.parse_line(short_field));
+
+  std::cout << "  test_coordinates_no_decimal_point passed\n";
+}
+
+void test_invalid_direction_rejected() {
+  // A3: направление должно быть N/S (широта) и E/W (долгота).
+  // Мусорная буква или пустое поле (null = нет данных) -> reject.
+  Parser parser;
+
+  const auto bad_dir = with_crc(
+      "$GPRMC,123519,A,4807.038,X,01131.000,E,022.4,084.4,230394,003.1,W");
+  assert(!parser.parse_line(bad_dir));
+
+  const auto empty_dir = with_crc(
+      "$GPRMC,123519,A,4807.038,,01131.000,E,022.4,084.4,230394,003.1,W");
+  assert(!parser.parse_line(empty_dir));
+
+  // Южное/Западное полушарие по-прежнему работает.
+  const auto good = with_crc(
+      "$GPRMC,123519,A,4807.038,S,01131.000,W,022.4,084.4,230394,003.1,W");
+  assert(parser.parse_line(good));
+  assert(approx_equal(parser.data().latitude_deg(), -48.1173));
+  assert(approx_equal(parser.data().longitude_deg(), -11.5167));
+
+  std::cout << "  test_invalid_direction_rejected passed\n";
+}
+
+void test_address_field_length() {
+  // A4: адресное поле ровно 5 символов (5.2.1.1); "GPRMCFOO" -> reject.
+  Parser parser;
+
+  const auto long_addr = with_crc(
+      "$GPRMCFOO,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W");
+  assert(!parser.parse_line(long_addr));
+
+  const auto good = with_crc(
+      "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W");
+  assert(parser.parse_line(good));
+
+  std::cout << "  test_address_field_length passed\n";
 }
 
 void test_negative_coordinates() {
@@ -198,11 +362,61 @@ void test_packet_crcs() {
   std::cout << "  test_packet_crcs passed\n";
 }
 
+void test_fields_without_decimal_point() {
+  // Некоторые приёмники передают числовые поля БЕЗ десятичной точки
+  // (Таблица 6: точка и дробь опциональны). Парсер должен трактовать их как
+  // целые значения в фиксированном масштабе поля:
+  //   скорость "022" -> 22.000 узла, курс "084" -> 84.00 deg,
+  //   высота "545" -> 545.00 м, HDOP "1" -> 1.00.
+  Parser parser;
+
+  // RMC без точек: координаты, скорость и курс.
+  const auto rmc = with_crc(
+      "$GPRMC,123519,A,4807,N,01131,E,022,084,230394,003.1,W");
+  assert(parser.parse_line(rmc));
+  assert(parser.data().valid == true);
+  assert(parser.data().speed_kn_x1000.raw == 22000); // 22.000 узла
+  assert(approx_equal(parser.data().speed_knots(), 22.0));
+  assert(parser.data().course_true.raw == 8400);     // 84.00 градуса
+  assert(approx_equal(parser.data().course_true_deg(), 84.0));
+  // Координаты без точки: "4807"/"01131" -> ddmm (уже покрыто отдельным тестом).
+  assert(approx_equal(parser.data().latitude_deg(), 48.0 + 7.0 / 60.0, 1e-5));
+  assert(approx_equal(parser.data().longitude_deg(), 11.0 + 31.0 / 60.0, 1e-5));
+
+  // GGA без точек: высота и HDOP.
+  const auto gga = with_crc(
+      "$GPGGA,123519,4807,N,01131,E,1,08,1,545,M,47.0,M,,");
+  assert(parser.parse_line(gga));
+  assert(parser.data().altitude_cm == 54500);        // 545.00 м
+  assert(approx_equal(parser.data().altitude_m(), 545.0));
+  assert(parser.data().hdop_e2 == 100);              // 1.00
+  assert(approx_equal(parser.data().hdop_value(), 1.0));
+
+  // VTG без точек: курс и обе скорости (узлы и км/ч).
+  const auto vtg = with_crc(
+      "$GPVTG,084,T,085,M,022,N,041,K");
+  assert(parser.parse_line(vtg));
+  assert(parser.data().course_true.raw == 8400);
+  assert(parser.data().course_mag.raw == 8500);
+  assert(parser.data().speed_kn_x1000.raw == 22000);
+  assert(parser.data().speed_kmh_x1000.raw == 41000);
+
+  std::cout << "  test_fields_without_decimal_point passed\n";
+}
+
 int main() {
   std::cout << "Running LightNMEA tests...\n\n";
 
   test_basic_rmc();
   test_basic_gga();
+  test_negative_altitude();
+  test_rmc_mode_indicator();
+  test_gga_quality_6_estimated();
+  test_speed_precision_e3();
+  test_fields_without_decimal_point();
+  test_coordinates_no_decimal_point();
+  test_invalid_direction_rejected();
+  test_address_field_length();
   test_invalid_crc();
   test_constellation_filter();
   test_negative_coordinates();
