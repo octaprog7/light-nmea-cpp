@@ -1,0 +1,23 @@
+# Build directories
+build-release/
+out/
+.ccache/
+
+# IDE and OS files
+.vscode/
+.cache/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Arduino build artifacts (if building locally)
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+
+# Python scripts cache
+__pycache__/
+*.pyc

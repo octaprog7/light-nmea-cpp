@@ -1,0 +1,23 @@
+{
+  "name": "light-nmea-cpp",
+  "version": "1.0.0",
+  "description": "Ultra-fast NMEA GPS parser for embedded systems",
+  "keywords": ["gps", "nmea", "parser", "embedded", "arduino", "esp32", "stm32"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/octaprog7/light-nmea-cpp.git"
+  },
+  "authors": [
+    {
+      "name": "Roman Shevchik",
+      "email": "kolbasilyvasily@yandex.ru"
+    }
+  ],
+  "license": "GPL-3.0",
+  "frameworks": ["arduino", "espidf", "stm32cube"],
+  "platforms": ["*"],
+  "headers": "lightnmea.h",
+  "build": {
+    "flags": ["-std=c++17"]
+  }
+}
