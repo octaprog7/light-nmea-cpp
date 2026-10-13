@@ -10,6 +10,7 @@
 
 #include <Arduino.h>
 #include <light_nmea.hpp>
+#include <nmea_formatter.hpp>  // detail::CST_NAMES / FIX_NAMES / get_name
 
 // ============================================================================
 // Platform Detection and Configuration
@@ -128,20 +129,28 @@ void output_csv(const light_nmea::NMEAData& data) {
     int mon = (d / 100) % 100;
     int yr = d % 100;
 
-    // New Order: date,time,valid,satellites,latitude,longitude,speed,course,altitude,constellation,fix_mode,hdop
-    Serial.printf("20%02d-%02d-%02d,%02d:%02d:%02d,%d,%u,%.6f,%.6f,%.2f,%.2f,%.2f,%d,%d,%.2f\n",
-        yr, mon, day,          // 1. Date (UTC): 2026-07-16
-        h, m, s,               // 2. Time (UTC): 19:27:13
-        data.valid ? 1 : 0,    // 3. Valid
-        data.satellites,       // 4. Satellites
-        data.latitude_deg(),   // 5. Latitude
-        data.longitude_deg(),  // 6. Longitude
-        data.speed_kmh(),      // 7. Speed (km/h)
-        data.course_true_deg(),// 8. Course (deg)
-        data.altitude_m(),     // 9. Altitude (m)
-        static_cast<int>(data.constellation), // 10. Constellation
-        static_cast<int>(data.fix_mode),      // 11. Fix mode
-        data.hdop_value()      // 12. HDOP
+    // Canonical 12-field CSV stream. The field order and formats follow the
+    // LOG_CSV_HEADER contract of the PC-side tools (dash_utils.hpp /
+    // dash_utils.py): nmea_pc_logger.py and gnss_dashboard expect exactly
+    // valid,satellites,latitude,longitude,speed,course,altitude,time,date,
+    // constellation,fix_mode,hdop. Time is "HH:MM:SS", date is "DD.MM.20YY"
+    // (both UTC); constellation and fix-mode are NAMES (not numeric enums),
+    // matching GNSSData::from_csv()/from_parser().
+    Serial.printf("%d,%u,%.6f,%.6f,%.1f,%.1f,%.1f,%02d:%02d:%02d,%02d.%02d.20%02d,%s,%s,%.2f\n",
+        data.valid ? 1 : 0,                 // 1. Valid (0/1)
+        static_cast<unsigned>(data.satellites), // 2. Satellites
+        data.latitude_deg(),                // 3. Latitude (deg)
+        data.longitude_deg(),               // 4. Longitude (deg)
+        data.speed_kmh(),                   // 5. Speed (km/h)
+        data.course_true_deg(),             // 6. Course true (deg)
+        data.altitude_m(),                  // 7. Altitude (m)
+        h, m, s,                            // 8. Time (UTC) HH:MM:SS
+        day, mon, yr,                       // 9. Date (UTC) DD.MM.20YY
+        light_nmea::detail::get_name(light_nmea::detail::CST_NAMES,
+                                     static_cast<uint8_t>(data.constellation)), // 10. Constellation
+        light_nmea::detail::get_name(light_nmea::detail::FIX_NAMES,
+                                     static_cast<uint8_t>(data.fix_mode)),      // 11. Fix mode
+        data.hdop_value()                   // 12. HDOP
     );
 }
 

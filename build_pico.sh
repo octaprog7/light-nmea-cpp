@@ -1,5 +1,6 @@
 #!/bin/bash
 #
+# build_pico.sh — скрипт для сборки и управления прошивкой Raspberry Pi Pico
 # build_pico.sh - Build and management script for Raspberry Pi Pico firmware
 #
 # Usage:
@@ -19,16 +20,17 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No color
 
-# Универсальный путь к PlatformIO CLI (работает для любого пользователя)
+# Путь к PlatformIO CLI (работает для любого пользователя ОС)
 PIO="$HOME/.platformio/penv/bin/pio"
 
-# Проверка, что PlatformIO установлен
+# Проверка наличия PlatformIO в ОС
 if [ ! -f "$PIO" ]; then
     echo -e "${RED}Error: PlatformIO not found at $PIO${NC}"
     echo "Please install PlatformIO or add it to your PATH"
     exit 1
 fi
 
+# В корневой директории проекта PlatformIO или нет?
 # Check if we are in the PlatformIO project root
 if [ ! -f "platformio.ini" ]; then
     echo -e "${RED}Error: platformio.ini not found in the current directory!${NC}"
