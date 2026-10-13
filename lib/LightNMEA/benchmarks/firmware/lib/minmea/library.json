@@ -1,0 +1,7 @@
+{
+  "name": "minmea",
+  "version": "0.0.1",
+  "keywords": "nmea, gps, parser",
+  "description": "kosma/minmea - lightweight NMEA parser (vendored copy of benchmarks/compare/third_party/minmea for on-target benchmarks)",
+  "license": "MIT"
+}

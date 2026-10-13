@@ -1,0 +1,7 @@
+{
+  "name": "TinyGPSPlus",
+  "version": "1.0.2",
+  "keywords": "gps, nmea, parser, arduino",
+  "description": "mikalhart/TinyGPSPlus - streaming NMEA parser (vendored copy of benchmarks/compare/third_party/TinyGPSPlus for on-target benchmarks)",
+  "license": "LGPL-2.1"
+}

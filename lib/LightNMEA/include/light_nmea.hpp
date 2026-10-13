@@ -35,6 +35,23 @@
   #define LIGHT_NMEA_ALWAYS_INLINE inline
 #endif
 
+// Переносимые подсказки ветвления [[likely]]/[[unlikely]] (C++20).
+// GCC >= 9 и Clang >= 12 принимают их и в режиме C++17 как расширение;
+// для более старых компиляторов (например, avr-gcc 7.3 из Arduino AVR core)
+// макрос раскрывается в пустоту, и код остаётся валидным C++17.
+#if defined(__has_cpp_attribute)
+  #if __has_cpp_attribute(likely)
+    #define LIGHT_NMEA_LIKELY [[likely]]
+    #define LIGHT_NMEA_UNLIKELY [[unlikely]]
+  #else
+    #define LIGHT_NMEA_LIKELY
+    #define LIGHT_NMEA_UNLIKELY
+  #endif
+#else
+  #define LIGHT_NMEA_LIKELY
+  #define LIGHT_NMEA_UNLIKELY
+#endif
+
 namespace light_nmea {
 
 // ============================================================================
@@ -408,11 +425,11 @@ private:
 // ============================================================================
 
 inline bool Parser::parse_line(std::string_view line) noexcept {
-  if (line.size() < MIN_PACKET_LEN || line.size() > MAX_PACKET_SIZE) [[unlikely]] {
+  if (line.size() < MIN_PACKET_LEN || line.size() > MAX_PACKET_SIZE) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_too_short++;
     return false;
   }
-  if (line[0] != CHAR_DOLLAR) [[unlikely]] {
+  if (line[0] != CHAR_DOLLAR) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_too_short++;
     return false;
   }
@@ -421,7 +438,7 @@ inline bool Parser::parse_line(std::string_view line) noexcept {
   // Класс символов отдельно не проверяем: talker (байты 1-2) валидирует
   // таблица созвездий ниже, а форматтер (байты 3-5) - точное сравнение с
   // RMC/GGA/VTG/GLL. MIN_PACKET_LEN >= 10 гарантирует доступность line[6].
-  if (line[6] != CHAR_COMMA) [[unlikely]] {
+  if (line[6] != CHAR_COMMA) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_unknown_msg++;
     return false;
   }
@@ -431,33 +448,33 @@ inline bool Parser::parse_line(std::string_view line) noexcept {
   // чтобы не тратить полный проход CRC+запятые на чужие/неподдерживаемые кадры.
   // В data_ пишем только после успешной валидации CRC (сохраняем "последние валидные данные").
   const Constellation cst = get_constellation(line[1], line[2]);
-  if (cst == Constellation::Unknown) [[unlikely]] {
+  if (cst == Constellation::Unknown) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_unknown_cst++;
     return false;
   }
-  if (!(config_.cst_mask & (1u << to_underlying(cst)))) [[unlikely]] {
+  if (!(config_.cst_mask & (1u << to_underlying(cst)))) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_filtered_cst++;
     return false;
   }
 
   MessageType mt = MessageType::Unknown;
   const char t1 = line[3], t2 = line[4], t3 = line[5];
-  if (t1 == CHAR_R && t2 == CHAR_M && t3 == CHAR_C) [[likely]] {
+  if (t1 == CHAR_R && t2 == CHAR_M && t3 == CHAR_C) LIGHT_NMEA_LIKELY {
     mt = MessageType::RMC;
-  } else if (t1 == CHAR_G && t2 == CHAR_G && t3 == CHAR_A) [[likely]] {
+  } else if (t1 == CHAR_G && t2 == CHAR_G && t3 == CHAR_A) LIGHT_NMEA_LIKELY {
     mt = MessageType::GGA;
-  } else if (t1 == CHAR_V && t2 == CHAR_T && t3 == CHAR_G) [[likely]] {
+  } else if (t1 == CHAR_V && t2 == CHAR_T && t3 == CHAR_G) LIGHT_NMEA_LIKELY {
     mt = MessageType::VTG;
-  } else if (t1 == CHAR_G && t2 == CHAR_L && t3 == CHAR_L) [[likely]] {
+  } else if (t1 == CHAR_G && t2 == CHAR_L && t3 == CHAR_L) LIGHT_NMEA_LIKELY {
     mt = MessageType::GLL;
   }
-  if (mt == MessageType::Unknown) [[unlikely]] {
+  if (mt == MessageType::Unknown) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_unknown_msg++;
     return false;
   }
 
   size_t star_idx = 0;
-  if (!scan_and_check_crc(line, star_idx)) [[unlikely]] {
+  if (!scan_and_check_crc(line, star_idx)) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_crc++;
     return false;
   }
@@ -493,7 +510,7 @@ LIGHT_NMEA_ALWAYS_INLINE bool Parser::scan_and_check_crc(std::string_view line, 
     calc_cs ^= static_cast<uint8_t>(c);
   }
 
-  if (star_idx == 0 || star_idx + 3 > line.size()) [[unlikely]] return false;
+  if (star_idx == 0 || star_idx + 3 > line.size()) LIGHT_NMEA_UNLIKELY return false;
 
   auto hex_to_int = [](char c) -> int {
     if (c >= '0' && c <= '9') return c - '0';
@@ -504,7 +521,7 @@ LIGHT_NMEA_ALWAYS_INLINE bool Parser::scan_and_check_crc(std::string_view line, 
 
   const int n1 = hex_to_int(line[star_idx + 1]);
   const int n2 = hex_to_int(line[star_idx + 2]);
-  if (n1 < 0 || n2 < 0) [[unlikely]] return false;
+  if (n1 < 0 || n2 < 0) LIGHT_NMEA_UNLIKELY return false;
 
   return calc_cs == static_cast<uint8_t>((n1 << 4) | n2);
 }
@@ -636,7 +653,7 @@ LIGHT_NMEA_ALWAYS_INLINE constexpr int32_t Parser::parse_value_e3(std::string_vi
 }
 
 LIGHT_NMEA_ALWAYS_INLINE std::string_view Parser::get_field(std::string_view line, uint8_t index) const noexcept {
-  if (index >= comma_count_) [[unlikely]] return {};
+  if (index >= comma_count_) LIGHT_NMEA_UNLIKELY return {};
   const size_t start = (index == 0) ? 0 : comma_pos_[index - 1] + 1;
   const size_t end = comma_pos_[index];
   return line.substr(start, end - start);
@@ -647,7 +664,7 @@ LIGHT_NMEA_ALWAYS_INLINE std::string_view Parser::get_field(std::string_view lin
 // RMC
 // ============================================================================
 inline bool Parser::parse_rmc(std::string_view line, size_t star_idx) noexcept {
-  if (comma_count_ < 9) [[unlikely]] {
+  if (comma_count_ < 9) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_too_short++;
     return false;
   }
@@ -676,7 +693,7 @@ inline bool Parser::parse_rmc(std::string_view line, size_t star_idx) noexcept {
   } // if (comma_count_ >= 12) {
 
   const std::string_view status = get_field(line, 2);
-  if (status.size() == 1 && status[0] == CHAR_A) [[likely]] {
+  if (status.size() == 1 && status[0] == CHAR_A) LIGHT_NMEA_LIKELY {
     data_.valid = true;
     data_.time_utc = parse_uint32(get_field(line, 1).substr(0, 6));
 
@@ -710,14 +727,14 @@ inline bool Parser::parse_rmc(std::string_view line, size_t star_idx) noexcept {
 // GGA
 // ============================================================================
 inline bool Parser::parse_gga(std::string_view line, size_t /*star_idx*/) noexcept {
-  if (comma_count_ < 9) [[unlikely]] {
+  if (comma_count_ < 9) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_too_short++;
     return false;
   }
 
   const std::string_view fix_quality_sv = get_field(line, 6);
   
-  if (!fix_quality_sv.empty() && fix_quality_sv[0] != CHAR_0) [[likely]] {
+  if (!fix_quality_sv.empty() && fix_quality_sv[0] != CHAR_0) LIGHT_NMEA_LIKELY {
     data_.valid = true;
 
     // UTC позиции (поле 1): GGA-only потоки (без RMC/GLL) тоже получают
@@ -769,7 +786,7 @@ inline bool Parser::parse_gga(std::string_view line, size_t /*star_idx*/) noexce
 // VTG
 // ============================================================================
 inline bool Parser::parse_vtg(std::string_view line, size_t /*star_idx*/) noexcept {
-  if (comma_count_ < 8) [[unlikely]] {
+  if (comma_count_ < 8) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_too_short++;
     return false;
   }
@@ -812,7 +829,7 @@ inline bool Parser::parse_vtg(std::string_view line, size_t /*star_idx*/) noexce
 // GLL
 // ============================================================================
 inline bool Parser::parse_gll(std::string_view line, size_t /*star_idx*/) noexcept {
-  if (comma_count_ < 6) [[unlikely]] {
+  if (comma_count_ < 6) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_too_short++;
     return false;
   }

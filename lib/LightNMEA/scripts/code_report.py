@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """code_report.py - report on the compiled release code of LightNMEA.
 
-Python-реализация анализа, ранее жившего в code_report.sh.
+Python-реализация анализа, ранее бывшего в code_report.sh.
 Весь анализ построен на вызове СТАНДАРТНЫХ утилит GNU binutils
 (size / nm / objdump / readelf / file) через subprocess.
 
@@ -20,7 +20,7 @@ Python-реализация анализа, ранее жившего в code_re
 
 Анализируется объектный файл сценария scripts/code_report_probe.cpp
 (целочисленное ядро: parse_line + raw values; float-геттеры и форматтеры
-не включаются). Либо можно передать готовый .o/.elf/.a.
+не включаются). Можно передать готовый .o/.elf/.a.
 
 Usage:
   ./code_report.py                # auto: Cortex-M0+ (если есть arm-none-eabi-g++)
@@ -167,7 +167,7 @@ FLOAT_HELPERS_RE = re.compile(
     r"__powisf2|__powidf2)"
 )
 
-# Строка реальной инструкции в дизассемблере: "  addr:" или "addr:",
+# Строка инструкции в дизассемблере: "  addr:" или "addr:",
 # мнемоника начинается с буквы a-z (метки "<имя>:" и данные .word/.byte не
 # попадают в выборку).
 INSN_LINE_RE = re.compile(r"^\s*[0-9a-fA-F]+:\s+[a-z]")
@@ -177,7 +177,7 @@ DATA_DIRECTIVES_RE = re.compile(
     r"\.(word|byte|short|long|inst|pool|align|ascii|fill|zero)"
 )
 
-# Аллокаторы и операторы new/delete для проверки памяти.
+# Выделение и операторы new/delete для проверки памяти.
 HEAP_RE = re.compile(
     r"(malloc|calloc|realloc|free|aligned_alloc|posix_memalign|memalign|"
     r"valloc|pvalloc|sbrk|brk|mmap|munmap)|_Z(nw|na|dl|da)[A-Za-z0-9_]*"
@@ -276,7 +276,7 @@ def count_insns(tools: Dict[str, str], f: str) -> int:
 
 
 def instruction_bytes(lines: Iterable[str]) -> int:
-    """Сумма байт кода: hex-токены между 'адрес:' и мнемоникой.
+    """Сумма байт-кода: hex-токены между 'адрес:' и мнемоникой.
 
     Эквивалент awk-скрипта из bash-версии: собираем hex-токены чётной длины
     до первого не-hex токена; строки данных (.word/.byte/...) исключаются.
@@ -585,7 +585,7 @@ def report_density(r: Report, f: str, arch: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Краткий отчёт (--quick): только сами факты, одной таблицей
+# Краткий отчёт (--quick): только факты, одной таблицей
 # ---------------------------------------------------------------------------
 
 def report_brief(r: Report, f: str, arch: str) -> int:
@@ -658,7 +658,7 @@ def report_brief(r: Report, f: str, arch: str) -> int:
 # ---------------------------------------------------------------------------
 
 def build_probe(target: str, build_dir: str, probe_src: str, inc: str) -> str:
-    """Компилирует code_report_probe.cpp; весь инфовывод - в stderr,
+    """Компилирует code_report_probe.cpp; весь вывод - в stderr,
     в stdout возвращается только путь к объектному файлу."""
     if target == "native":
         cxx = os.environ.get("CXX", "g++")

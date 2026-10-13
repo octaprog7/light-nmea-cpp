@@ -10,8 +10,8 @@ def download_gps_traces(output_dir="data/raw", max_pages=10):
     """Скачивание публичных GPS-треков"""
     os.makedirs(output_dir, exist_ok=True)
     
-    # Правильный API endpoint для GPS traces
-    # Используем маленькие bbox для избежания лимита
+    # API endpoint для GPS traces
+    # Использую bbox для избежания ограничения
     bboxes = [
         "37.5,55.7,37.6,55.75",  # Москва, центр
         "30.3,59.9,30.4,59.95",  # Санкт-Петербург

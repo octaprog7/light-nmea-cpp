@@ -63,7 +63,7 @@ def gpx_to_nmea(gpx_file, nmea_file):
         ns = {'gpx': ns_uri}
         print(f"[{ns_uri}]", end=' ')
     
-    # Ищем точки трека с учётом namespace
+    # Поиск точки трека с учётом namespace
     if ns:
         points = root.findall('.//gpx:trkpt', ns)
     else:

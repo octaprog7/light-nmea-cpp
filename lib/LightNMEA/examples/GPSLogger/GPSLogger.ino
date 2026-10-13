@@ -35,8 +35,11 @@ void setup() {
     logFile.close();
   }
   
-#if defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_SAMD) || defined(ARDUINO_AVR_MEGA2560)
+#if defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_SAMD) || defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_STM32) || defined(ARDUINO_AVR_MEGA2560)
   Serial1.begin(9600);
+#elif defined(ESP8266)
+  #warning "ESP8266: GPS on Serial (shared with debug output)"
+  Serial.begin(9600);
 #else
   Serial.begin(9600);
 #endif
@@ -45,7 +48,7 @@ void setup() {
 }
 
 void loop() {
-#if defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_SAMD) || defined(ARDUINO_AVR_MEGA2560)
+#if defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_SAMD) || defined(ARDUINO_ARCH_RP2040) || defined(ARDUINO_ARCH_STM32) || defined(ARDUINO_AVR_MEGA2560)
   while (Serial1.available()) {
     char c = Serial1.read();
 #else
