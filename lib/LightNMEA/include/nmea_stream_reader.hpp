@@ -92,7 +92,7 @@ public:
     uint8_t read_buffer[STREAM_MAX_CHUNK];
     size_t total_processed = 0;
 
-    // Читаем в цикле, пока есть данные
+    // Чтение в цикле, при наличии данных
     while (true) {
       size_t num_bytes = stream.read(read_buffer, STREAM_MAX_CHUNK);
       if (num_bytes == 0)

@@ -1,0 +1,19 @@
+/*
+ * LightNMEA Zephyr example - nRF52840 DK overlay
+ *
+ * Использует UART0 (pins P0.06 TX / P0.08 RX) для uart_pipe.
+ * Для других плат создайте свой overlay в папке boards/ и настройте
+ * chosen "zephyr,uart-pipe" на нужный UART.
+ */
+
+/ {
+	chosen {
+		zephyr,console = &uart0;
+		zephyr,uart-pipe = &uart0;
+	};
+};
+
+&uart0 {
+	status = "okay";
+	current-speed = <115200>;
+};

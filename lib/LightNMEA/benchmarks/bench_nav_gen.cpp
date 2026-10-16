@@ -31,7 +31,7 @@ void benchmark_nav_gen(size_t iterations) {
     auto start = std::chrono::high_resolution_clock::now();
 
     for (size_t i = 0; i < iterations; ++i) {
-        // Используем реальную функцию из вашего nav_gen.hpp
+        // Использую функцию из nav_gen.hpp
         std::string_view packet = nav_gen::get_nav_packet();
         
         if (parser.parse_line(packet)) {

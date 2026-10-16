@@ -1,0 +1,125 @@
+# ============================================================================
+# LightNMEA CI: build, tests and example compilation for all platforms
+# ============================================================================
+# Runs on push to main/master and on pull requests.
+#
+# Jobs:
+#   cmake       - build + unit tests (Linux/macOS/Windows, -Werror)
+#   platformio  - firmware compilation (Pico, ESP32) and ESP32 RTOS benchmark
+#   arduino     - Arduino sketch compilation (BasicGPS/GPSToJSON/GPSLogger)
+#   freertos    - FreeRTOS example and RTOS benchmark build (POSIX port)
+#   zephyr      - Zephyr example build (native_sim)
+# ============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  cmake:
+    name: CMake build & tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            cxx_flags: -DCMAKE_CXX_FLAGS=-Wall\ -Wextra\ -Werror
+          - os: macos-latest
+            cxx_flags: -DCMAKE_CXX_FLAGS=-Wall\ -Wextra\ -Werror
+          - os: windows-latest
+            cxx_flags: -DCMAKE_CXX_FLAGS=/W4\ /WX
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure (warnings as errors)
+        run: cmake -S lib/LightNMEA -B build -DCMAKE_BUILD_TYPE=Release ${{ matrix.cxx_flags }}
+
+      - name: Build
+        run: cmake --build build -j
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+  platformio:
+    name: PlatformIO compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio/.cache
+            ~/.platformio/packages
+          key: pio-${{ runner.os }}-${{ hashFiles('lib/LightNMEA/benchmarks/firmware/platformio.ini') }}
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware benchmark (pico, esp32)
+        working-directory: lib/LightNMEA/benchmarks/firmware
+        run: pio run -e pico -e esp32
+
+      - name: Build RTOS benchmark (ESP32 D1 mini)
+        working-directory: lib/LightNMEA/benchmarks/rtos/esp32
+        run: pio run -e d1_mini32
+
+  arduino:
+    name: Arduino sketches
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/compile-sketches@v1
+        with:
+          fqbn: esp32:esp32:esp32
+          libraries: |
+            - source-path: lib/LightNMEA
+          sketch-paths: |
+            - lib/LightNMEA/examples/BasicGPS
+            - lib/LightNMEA/examples/GPSToJSON
+            - lib/LightNMEA/examples/GPSLogger
+
+  freertos:
+    name: FreeRTOS (host, POSIX port)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build FreeRTOS example
+        working-directory: lib/LightNMEA/examples/freertos
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j
+
+      - name: Build FreeRTOS RTOS benchmark
+        working-directory: lib/LightNMEA/benchmarks/rtos/freertos
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j
+
+  zephyr:
+    name: Zephyr (native_sim)
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Zephyr SDK setup may change; do not block CI
+    steps:
+      - uses: actions/checkout@v4
+      - uses: zephyrproject-rtos/action-zephyr-build@v1
+        with:
+          app-dir: lib/LightNMEA/examples/zephyr
+          board: native_sim
+          toolchain: host
+
+  quality:
+    name: Quality (fuzz + sanitizers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run quality checks
+        working-directory: lib/LightNMEA
+        run: |
+          FUZZ_RANDOM=200000 FUZZ_RANDOM_SAN=50000 ./scripts/run_quality_checks.sh

@@ -4,7 +4,7 @@
 # (bench_compare_mcu) для Raspberry Pi Pico (RP2040) и ESP32.
 #
 # Прошивка сравнивает на плате LightNMEA vs minmea vs TinyGPSPlus на
-# одинаковых пакетах (nav_gen.hpp) и выводит pkt/s через Serial @ 115200.
+# одинаковых пакетах (nav_gen.hpp) и выводит pkt/s по Serial @ 115200.
 #
 # Использование:
 #   ./build_bench_fw.sh                    собрать все env (pico, esp32, d1_mini32,

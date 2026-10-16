@@ -32,6 +32,10 @@
 #include <ctime>
 #include <string>
 
+// POSIX-расширения <time.h>: timespec, nanosleep(), clock_gettime().
+// ISO C++ <ctime> не гарантирует их наличие, подключаю.
+#include <time.h>
+
 #include <unistd.h>
 
 namespace dash_utils {
@@ -50,8 +54,8 @@ enum DataStreamType : uint8_t {
 // Общие
 inline constexpr const char *PLACEHOLDER = "---"; // заполнитель отсутствующих значений
 inline constexpr double TO_KMH = 1.0;  // скорость в потоках уже в км/ч
-inline constexpr int COMMA_COUNT_CSV = 11;  // кол-во запятых в CSV-потоке (12 полей)
-inline constexpr int CSV_FIELDS_COUNT = 12; // кол-во полей в CSV-потоке данных
+inline constexpr int COMMA_COUNT_CSV = 11;  // количество запятых в CSV-потоке (12 полей)
+inline constexpr int CSV_FIELDS_COUNT = 12; // количество полей в CSV-потоке данных
 
 // Serial / USB
 inline constexpr uint32_t DEFAULT_BAUDRATE = 115200; // 38400
@@ -67,7 +71,7 @@ inline constexpr int MCU_MSG_SOFTWARE_RESET = 2;
 inline constexpr int MCU_MSG_WATCHDOG_TRIGGERED = 3;
 inline constexpr const char *DEFAULT_MODULE_NAME = "Unknown";
 
-// Логирование
+// Логирование. Те самые 12 полей.
 inline constexpr const char *LOG_FILENAME = "gnss_log.csv";
 inline constexpr const char *LOG_CSV_HEADER =
     "timestamp,valid,satellites,latitude,longitude,speed,course,altitude,"
@@ -226,7 +230,7 @@ inline bool is_csv(const std::string &line, int csv_fields_count) noexcept {
 
 // Определяет формат данных в line (аналог detect_format в python):
 //   0 - неизвестный, 1 - CSV, 2 - NMEA-0183.
-// Сначала строго проверяется NMEA-0183, затем CSV.
+// Сначала строго проверяется NMEA-0183, потом CSV.
 inline DataStreamType detect_format(
     const std::string &line,
     int csv_fields_count = CSV_FIELDS_COUNT) noexcept {
@@ -260,7 +264,7 @@ inline const char *stream_format_by_id(DataStreamType id_fmt) noexcept {
 // Пример: $PUBX,00 -> 0x554258 (UBX); $PGRMZ -> 0x47524D (GRM);
 //         $PTNL    -> 0x544E4C (TNL).
 // Внимание: в python-версии get_mfr_code сдвиги <<24/<<16/<<8 не согласованы
-// с извлечением в code_to_mfr_string (>>16/>>8/>>0) - круговая конвертация
+// при извлечении в code_to_mfr_string (>>16/>>8/>>0) - круговая конвертация
 // даёт "BX\0" вместо "UBX". Здесь реализовано документированное поведение,
 // при котором code_to_mfr_string(get_mfr_code("$PUBX")) == "UBX".
 inline uint32_t get_mfr_code(const std::string &sentence) noexcept {
@@ -299,7 +303,7 @@ inline std::string code_to_mfr_string(uint32_t code) noexcept {
   if (code == 0)
     return "";
 
-  // достаём три байта: старший, средний и младший
+  // три байта: старший, средний и младший
   const char b1 = static_cast<char>((code >> 16) & 0xFF);
   const char b2 = static_cast<char>((code >> 8) & 0xFF);
   const char b3 = static_cast<char>(code & 0xFF);
@@ -343,7 +347,7 @@ inline bool detect_port(std::string &out) noexcept {
   return false;
 }
 
-// Парсит аргументы командной строки: DEVICE [BAUD] (аналог parse_args в python).
+// Функция парсит аргументы командной строки: DEVICE [BAUD] (аналог parse_args в python).
 // При некорректном BAUD выводит сообщение и возвращает false.
 inline bool parse_args(int argc, char **argv, std::string &port,
                        uint32_t &baudrate) noexcept {
@@ -361,7 +365,7 @@ inline bool parse_args(int argc, char **argv, std::string &port,
   return true;
 }
 
-// Сторона света по курсу (угол в градусах) - как GNSSData.compass_letter.
+// Возвращает строку стороны света по значению курса (угол в градусах) - как GNSSData.compass_letter.
 inline const char *compass_letter(double course) noexcept {
   static const char *dirs[] = {"N", "NE", "E", "SE",
                                "S", "SW", "W", "NW"};
@@ -388,7 +392,7 @@ struct GNSSData {
   int satellites = -1;     // -1 = неизвестно
   double latitude = NAN;   // NAN = отсутствует
   double longitude = NAN;
-  double speed_kmh = NAN;  // скорость в км/ч (как в CSV-потоке платы)
+  double speed_kmh = NAN;  // скорость в км/ч (как в CSV-потоке от платы)
   double course = NAN;
   double altitude = NAN;
   double hdop = NAN;
@@ -521,14 +525,14 @@ inline std::string GNSSData::to_csv_line() const noexcept {
 }
 
 // ============================================================================
-// LogWriter - запись строк GNSS-данных в CSV-файл с timestamp (UTC)
+// LogWriter - пишет строки GNSS-данных в CSV-файл с timestamp (UTC) меткой
 // ============================================================================
-// Аналог LogWriter в python: формат потока определяется автоматически через
+// Аналог LogWriter в python: формат потока определяется автоматически с помощью
 // detect_format():
 //   - CSV-поток пишется в лог напрямую;
-//   - NMEA-0183 пишется через GNSSData::to_csv_line() (data не должен быть
+//   - NMEA-0183 сериализуется с помощью GNSSData::to_csv_line() (data не должен быть
 //     nullptr - иначе строка пропускается);
-//   - неизвестный формат пропускается (чтобы не нарушать CSV-контракт лога).
+//   - неизвестный формат пропускается (чтобы не нарушать формат CSV лога).
 class LogWriter {
 public:
   explicit LogWriter(const char *filename = LOG_FILENAME) noexcept
@@ -541,8 +545,8 @@ public:
   LogWriter(const LogWriter &) = delete;
   LogWriter &operator=(const LogWriter &) = delete;
 
-  // Открывает файл лога в режиме дополнения; в новый/пустой файл
-  // записывает заголовок CSV.
+  // Открывает лог-файл в режиме дополнения; в новый/пустой файл
+  // записывает заголовок CSV с именами полей.
   void open() noexcept {
     close();
     f_ = std::fopen(name_.c_str(), "a");
@@ -576,7 +580,7 @@ public:
   [[nodiscard]] uint64_t lines_written() const noexcept { return count_; }
   void reset_count() noexcept { count_ = 0; }
 
-  // Записывает строку данных GNSS в лог с UTC-временной меткой.
+  // Записывает строку данных GNSS в лог-файл с UTC-меткой времени.
   void write(const std::string &raw_line, const GNSSData *data = nullptr) noexcept {
     if (!f_) {
       writing_ = false;
@@ -590,11 +594,11 @@ public:
       break;
     case DATA_STREAM_NMEA_0183:
       if (!data)
-        return; // NMEA распарсилась, но валидных данных нет - пропускаем
+        return; // NMEA распарсилась, но валидных данных нет - пропускаю
       record = data->to_csv_line();
       break;
     default:
-      return; // неизвестный формат - пропускаем
+      return; // неизвестный формат - пропускаю
     }
 
     char ts[16];
@@ -650,7 +654,7 @@ public:
 
     const double lat = data.latitude;
     const double lon = data.longitude;
-    // Пропускаем дубликат: та же позиция, что и в последней добавленной точке
+    // Пропускаю дубликат: та же позиция, что и в последней добавленной точке
     if (n_ > 0 && lat == last_lat_ && lon == last_lon_)
       return;
 
@@ -824,13 +828,13 @@ public:
     if (!ser_.is_open())
       return res;
 
-    // Читаем все доступные байты
+    // Читает все доступные байты в буфер
     uint8_t tmp[512];
     size_t n = 0;
     while ((n = ser_.read(tmp, sizeof(tmp))) > 0)
       buffer_.append(reinterpret_cast<const char *>(tmp), n);
 
-    // Ищем конец строки
+    // производит поиск конца строки
     const size_t nl = buffer_.find('\n');
     if (nl == std::string::npos) {
       // Защита от разрастания буфера: нет '\n' в пределах лимита - это мусор
@@ -842,7 +846,7 @@ public:
     std::string line = buffer_.substr(0, nl);
     buffer_.erase(0, nl + 1);
 
-    // Очистка: отсекаем \r и пробелы по краям (как .strip() в python)
+    // Очистка: отсечение \r и пробелы по краям (как .strip() в python)
     size_t b = 0;
     while (b < line.size() && (line[b] == ' ' || line[b] == '\t' ||
                                line[b] == '\r' || line[b] == '\n'))
@@ -889,8 +893,8 @@ public:
           res.has_data = true;
         }
       }
-      // Если NMEA распарсился, но координат нет - возвращаем None, но
-      // строку для логирования оставляем (лог сам её отфильтрует)
+      // Если NMEA распарсился, но координат нет - возвращает None, но
+      // оставляю строку для логирования  (логгер её отфильтрует)
       return res;
     }
     default:

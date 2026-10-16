@@ -46,7 +46,7 @@ namespace light_nmea {
 // ============================================================================
 // TCPStream - поток из TCP-сокета (GNSS по локальной сети / gpsd / relay).
 // ============================================================================
-// Соединяется с host:port (host может быть IP или DNS-именем), переводит
+// Соединяется с host:port (host может быть IP-адресом или DNS-именем), переводит
 // сокет в неблокирующий режим. read() возвращает 0, если данных нет.
 //
 //   TCPStream net;
@@ -135,7 +135,7 @@ private:
 // ============================================================================
 // WebSocketStream - минимальный WebSocket-клиент (RFC 6455) для POSIX.
 // ============================================================================
-// Позволяет читать NMEA-0183, транслируемый через WebSocket-сервер
+// Позволяет читать NMEA-0183, передаваемый по WebSocket-серверу
 // (например, сетевой мост для GNSS-приёмника). Реализация самодостаточна:
 // HTTP-рукопожатие + SHA-1 + base64 встроены, внешние библиотеки не нужны.
 //
@@ -210,7 +210,7 @@ public:
       return n;
     }
 
-    // 2) Подкачиваем фреймы, пока не появится полезная нагрузка.
+    // 2) Подкачивает кадры/frames, пока не появится полезная нагрузка.
     while (pump_once()) {
       if (data_pos_ < data_.size())
         break;
@@ -304,7 +304,7 @@ private:
     if (send_all(reinterpret_cast<const uint8_t *>(req.data()), req.size()) < 0)
       return false;
 
-    // Читаем ответ до конца заголовков ("\r\n\r\n").
+    // Чтение ответа до символов конца пакета ("\r\n\r\n").
     std::string resp;
     char tmp[512];
     while (resp.find("\r\n\r\n") == std::string::npos) {
@@ -313,10 +313,10 @@ private:
         return false;
       resp.append(tmp, static_cast<size_t>(n));
       if (resp.size() > 16384)
-        return false; // защита от разрастания
+        return false; // защита буфера от разрастания
     }
 
-    // Статус должен быть 101 Switching Protocols.
+    // Статус должен быть равен: 101 Switching Protocols.
     if (resp.compare(0, 12, "HTTP/1.1 101") != 0 &&
         resp.compare(0, 12, "HTTP/1.0 101") != 0)
       return false;
@@ -327,7 +327,7 @@ private:
     const std::string accept_expected =
         base64_encode(digest.data(), digest.size());
 
-    // Ищем заголовок Sec-WebSocket-Accept в ответе.
+    // Поиск в ответе заголовка Sec-WebSocket-Accept.
     const std::string lower = to_lower(resp);
     const std::string marker = "sec-websocket-accept:";
     const size_t pos = lower.find(marker);
@@ -342,7 +342,7 @@ private:
     if (!icase_equal(value, accept_expected))
       return false;
 
-    // Остаток буфера после заголовков - начало фреймов.
+    // Часть данных в буфере после заголовков - начало фреймов.
     const size_t header_end = resp.find("\r\n\r\n") + 4;
     if (header_end < resp.size()) {
       rx_.assign(reinterpret_cast<const uint8_t *>(resp.data()) + header_end,
@@ -350,7 +350,7 @@ private:
       rx_pos_ = 0;
     }
 
-    // Переключаем сокет в неблокирующий режим.
+    // Переключает сокет в неблокирующий режим.
     const int flags = ::fcntl(fd_, F_GETFL, 0);
     if (flags >= 0)
       ::fcntl(fd_, F_SETFL, flags | O_NONBLOCK);
@@ -361,8 +361,8 @@ private:
   // Приём и разбор фреймов
   // --------------------------------------------------------------------------
   // Одна попытка recv() + разбор всех доступных фреймов.
-  // Возвращает true, если получены байты из сети (даже если полезной
-  // нагрузки пока нет), false - данных нет (EAGAIN/EOF/ошибка).
+  // Возвращает true, если байты получены по сети (даже если полезной нагрузки пока нет),
+  // false - данных нет (EAGAIN/EOF/ошибка).
   bool pump_once() noexcept {
     uint8_t buf[2048];
     const ssize_t n = ::recv(fd_, buf, sizeof(buf), 0);
@@ -377,7 +377,7 @@ private:
 
     rx_.insert(rx_.end(), buf, buf + n);
 
-    // Компактизация буфера, чтобы он не разрастался.
+    // Сжатие размера буфера, чтобы не разрастался.
     if (rx_pos_ > 0 && rx_pos_ >= rx_.size() / 2) {
       rx_.erase(rx_.begin(), rx_.begin() + static_cast<ptrdiff_t>(rx_pos_));
       rx_pos_ = 0;
@@ -391,7 +391,7 @@ private:
     while (true) {
       const int rc = try_parse_frame();
       if (rc == 0)
-        break; // нужны ещё байты
+        break; // нужно больше данных
       if (rc < 0) {
         close();
         return false;
@@ -451,7 +451,7 @@ private:
       const size_t len = static_cast<size_t>(payload_len_);
 
       switch (opcode_) {
-      case 0x0: // continuation
+      case 0x0: // продолжение
         frag_.insert(frag_.end(), payload, payload + len);
         if (fin_) {
           if (in_fragment_) {
@@ -459,7 +459,7 @@ private:
             frag_.clear();
             in_fragment_ = false;
           } else {
-            return -1; // continuation без начального фрагмента
+            return -1; // продолжение без начального фрагмента
           }
         }
         break;
@@ -474,14 +474,14 @@ private:
         break;
       case 0x8: // close
         reply_close(payload, len);
-        return -1; // завершаем чтение
+        return -1; // завершение чтения
       case 0x9:   // ping
         reply_pong(payload, len);
         break;
       case 0xA: // pong
         break;
       default:
-        return -1; // неизвестный опкод
+        return -1; // неизвестный код операции
       }
 
       rx_pos_ += payload_len_;
@@ -495,7 +495,7 @@ private:
 
   void append_payload(const uint8_t *p, size_t len) noexcept {
     if (data_.size() + len > (1u << 20))
-      return; // защита от разрастания очереди
+      return; // защита очереди от разрастания
     data_.insert(data_.end(), p, p + len);
   }
 
@@ -625,7 +625,7 @@ private:
       if (got == len)
         return;
     }
-    // Фолбэк: смесь времени и счётчика (не критично для ключа).
+    // FallBack: смесь времени и счётчика (не критично для ключа).
     uint64_t seed = static_cast<uint64_t>(::time(nullptr)) ^
                     static_cast<uint64_t>(::getpid()) << 32;
     for (size_t i = 0; i < len; ++i) {
@@ -691,7 +691,7 @@ private:
   bool fin_ = false;
   uint64_t payload_len_ = 0;
 
-  std::vector<uint8_t> frag_; // фрагмент (для continuation-фреймов)
+  std::vector<uint8_t> frag_; // фрагмент (для фреймов-продолжений)
   bool in_fragment_ = false;
 };
 

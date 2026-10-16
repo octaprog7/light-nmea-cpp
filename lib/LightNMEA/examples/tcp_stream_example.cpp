@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
   // Анти-спам фильтр: не чаще 1 GGA/RMC в 200 мс.
   reader.set_anti_spam_interval(200);
 
-  // Читаем пакеты, пока соединение открыто.
+  // Читает пакеты, пока соединение открыто.
   while (net.is_open()) {
     reader.read_available(parser, net, get_time_ms, on_packet);
   }

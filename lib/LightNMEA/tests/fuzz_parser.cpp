@@ -21,7 +21,7 @@
  * @brief Фаззинг-тест парсера LightNMEA.
  *
  * Проверяет устойчивость парсера к повреждённым, оборванным и мусорным
- * входам. Предназначен для запуска ПОД САНИТАЙЗЕРАМИ:
+ * пакетам/сентенциям. Предназначен для запуска ИЗ ПОД САНИТАЙЗЕРОВ:
  *   g++ -std=c++17 -O1 -g -fsanitize=address,undefined \
  *       -fno-omit-frame-pointer -I../include fuzz_parser.cpp -o fuzz_parser
  *
@@ -29,12 +29,12 @@
  *   1. Детерминированная - для каждого эталонного пакета из nav_gen
  *      перебираются все позиции: флип байта, обрыв, удаление, вставка,
  *      мусорный префикс/хвост, переполнение длины.
- *   2. Случайная - N случайных мутаций (аргумент CLI, по умолчанию 1'000'000).
+ *   2. Случайная - N случайных изменений (аргумент CLI, по умолчанию 1'000'000).
  *
  * Код возврата: 0 - все инварианты выполнены; 1 - найден FAIL.
- * Ошибки памяти / UB ловятся самими санитайзерами (ненулевой код).
+ * Ошибки памяти / UB ловятся санитайзерами (ненулевой код).
  *
- * Запуск всего комплекта проверок: scripts/run_quality_checks.sh
+ * Запуск всего набора проверок: scripts/run_quality_checks.sh
  */
 
 #include "light_nmea.hpp"
@@ -54,7 +54,7 @@ namespace {
 // ГПСЧ и вспомогательные утилиты
 // ---------------------------------------------------------------------------
 
-/** xorshift64 - быстрый детерминированный ГПСЧ для мутаций. */
+/** xorshift64 - быстрый детерминированный ГПСЧ для изменений. */
 inline uint64_t next_rand(uint64_t &s) noexcept {
   s ^= s << 13;
   s ^= s >> 7;
@@ -74,11 +74,11 @@ void fail(const char *what) {
 }
 
 // ---------------------------------------------------------------------------
-// Инварианты распарсенных данных
+// Подварианты распарсенных данных
 // ---------------------------------------------------------------------------
 
 /**
- * Проверяет инварианты данных после успешного parse_line().
+ * Проверяет данные после успешного вызова parse_line().
  * Критические: координаты в допустимых диапазонах (иначе парсер выдаёт
  * некорректную навигацию). Остальное контролируется санитайзерами.
  */
@@ -95,7 +95,7 @@ void check_invariants(const NMEAData &d) {
 }
 
 // ---------------------------------------------------------------------------
-// Recovery-проверка: после потока мусора парсер должен восстановиться
+// Проверка на восстановление: после мусорного потока парсер должен(!) восстановиться
 // ---------------------------------------------------------------------------
 
 bool recovery_test() {
@@ -109,9 +109,9 @@ bool recovery_test() {
       "A\r\n",
   };
   for (const auto g : garbage) {
-    (void)p.parse_line(g); // результат на мусоре не важен - важна устойчивость
+    (void)p.parse_line(g); // результат из мусорных данных не важен - важна устойчивость
   }
-  // После мусора - корректный RMC из nav_gen (Мюнхен).
+  // После мусорных данных - правильный пакет RMC из nav_gen (Мюнхен).
   const bool ok = p.parse_line(nav_gen::NAV_PACKETS[0]);
   const NMEAData &d = p.data();
   return ok && d.lat.is_valid() && d.lon.is_valid() && d.lat.raw != 0 &&
@@ -119,7 +119,7 @@ bool recovery_test() {
 }
 
 // ---------------------------------------------------------------------------
-// Мутации
+// Мутации - изменения входных данных определенным образом
 // ---------------------------------------------------------------------------
 
 /**
@@ -130,14 +130,14 @@ bool recovery_test() {
 bool mutate(std::string s, uint64_t &rng, std::string &out) {
   const size_t len = s.size();
   if (len == 0) {
-    out = s; // пустая строка - тоже вход
+    out = s; // пустая строка
     return true;
   }
   switch (next_rand(rng) % 10u) {
     case 0: // без изменений (контрольный прогон)
       out = s;
       return true;
-    case 1: { // флип одного байта
+    case 1: { // замена одного байта
       const size_t i = static_cast<size_t>(next_rand(rng)) % len;
       s[i] ^= static_cast<char>(1u << (rnd_byte(rng) & 7u));
       out = s;
@@ -176,7 +176,7 @@ bool mutate(std::string s, uint64_t &rng, std::string &out) {
       out = s;
       return true;
     }
-    case 8: { // битая контрольная сумма: флип hex-цифры после '*'
+    case 8: { // 'битая' контрольная сумма: 'переворот' hex-цифры после '*'
       const size_t star = s.find('*');
       if (star == std::string::npos || star + 2 >= len) {
         out = s;
@@ -202,7 +202,7 @@ bool mutate(std::string s, uint64_t &rng, std::string &out) {
 
 /**
  * Детерминированная фаза: по всем эталонным пакетам x все позиции
- * (флип, обрыв, удаление, вставка), плюс граничные случаи.
+ * ('переворот'-флип, обрыв, удаление, вставка), плюс граничные случаи.
  */
 size_t run_deterministic(Parser &parser) {
   size_t accepted = 0;
@@ -217,19 +217,19 @@ size_t run_deterministic(Parser &parser) {
     const std::string src(base);
     const size_t len = src.size();
 
-    // as-is (контроль)
+    // Проверка 'как есть'
     if (parser.parse_line(src)) {
       check_invariants(parser.data());
       ++accepted;
     }
-    // обрыв на каждой позиции 0..len
+    // Обрыв на каждой позиции 0..len
     for (size_t i = 0; i <= len; ++i) {
       if (parser.parse_line(std::string_view(src).substr(0, i))) {
         check_invariants(parser.data());
         ++accepted;
       }
     }
-    // флип каждого байта
+    // 'Переворот' каждого байта
     for (size_t i = 0; i < len; ++i) {
       std::string m = src;
       m[i] ^= static_cast<char>(0xFF);
@@ -238,7 +238,7 @@ size_t run_deterministic(Parser &parser) {
         ++accepted;
       }
     }
-    // удаление каждого байта
+    // Удаление каждого байта
     for (size_t i = 0; i < len; ++i) {
       std::string m = src;
       m.erase(i, 1);
@@ -247,7 +247,7 @@ size_t run_deterministic(Parser &parser) {
         ++accepted;
       }
     }
-    // вставка 'A' в каждую позицию
+    // Вставка 'A' в каждую позицию
     for (size_t i = 0; i <= len; ++i) {
       std::string m = src;
       m.insert(i, 1, 'A');
@@ -282,7 +282,7 @@ size_t run_deterministic(Parser &parser) {
 }
 
 /**
- * Случайная фаза: N мутаций через mutate().
+ * Случайная фаза: N мутаций с помощью mutate().
  */
 size_t run_random(Parser &parser, size_t n, uint64_t seed) {
   uint64_t rng = seed;

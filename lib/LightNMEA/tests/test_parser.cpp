@@ -14,7 +14,7 @@ bool approx_equal(double a, double b, double epsilon = 1e-4) {
   return std::abs(a - b) < epsilon;
 }
 
-// NMEA-0183 контрольная сумма: XOR байт между '$' и '*'
+// Возвращает контрольную сумму NMEA-0183: XOR байт между '$' и '*'
 uint8_t nmea_crc(std::string_view line) noexcept {
   uint8_t crc = 0;
   for (size_t i = 1; i < line.size(); ++i) {
@@ -25,7 +25,7 @@ uint8_t nmea_crc(std::string_view line) noexcept {
   return crc;
 }
 
-// Формирует полную NMEA-строку, дописывая корректную контрольную сумму.
+// Формирует полную NMEA-строку, дописывая верную контрольную сумму.
 std::string with_crc(std::string_view body) {
   char buf[160];
   const int len = std::snprintf(buf, sizeof(buf), "%s*%02X",
@@ -45,11 +45,11 @@ void test_basic_rmc() {
   Parser parser;
   std::string_view nmea =
       "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A";
-  (void)nmea; // Подавляю предупреждение
+  (void)nmea; // подавляю предупреждение
 
   assert(parser.parse_line(nmea));
   const auto &data = parser.data();
-  (void)data; // Подавляю предупреждение
+  (void)data; // подавляю предупреждение
 
   assert(data.valid == true);
   assert(data.constellation == Constellation::GPS);
@@ -100,9 +100,8 @@ void test_basic_gga() {
 
 void test_negative_altitude() {
   // NMEA-0183, Таблица 6, примечание 2: "-" (HEX 2D) - первый символ
-  // числового поля, если значение отрицательное. Высота над MSL в GGA
-  // законно бывает отрицательной. Регрессия: раньше parse_value_e2()
-  // терял знак, и "-545.4" давало +545.4 м.
+  // числового поля, если значение отрицательное. Высота над уровнем моря в GGA
+  // бывает отрицательной. Раньше parse_value_e2() терял знак, и "-545.4" превращалось в 545.4 м (потеря знака).
   Parser parser;
   std::string_view nmea =
       "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,-545.4,M,47.0,M,,*62";
@@ -210,7 +209,7 @@ void test_gga_quality_6_estimated() {
 }
 
 void test_speed_precision_e3() {
-  // B4: скорость хранится в тысячных узла - "0.146" (пример gpsd) не теряет
+  // Поле B4: скорость хранится в тысячных долях узла - "0.146" (пример gpsd) не теряет
   // точность, как раньше с сотыми (0.146 -> 0.14).
   Parser parser;
   const auto line = with_crc(
@@ -298,11 +297,11 @@ void test_course_precision() {
   // Регрессия parse_value_e1(): при ровно одном знаке после запятой
   // курс не должен терять дробную часть. "084.4" -> 84.40 (масштаб e2).
   Parser parser;
-  std::string_view nmea =
+  [[maybe_unused]] std::string_view nmea =
       "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A";
 
   assert(parser.parse_line(nmea));
-  const auto &data = parser.data();
+  [[maybe_unused]] const auto &data = parser.data();
 
   // course_true.raw хранится в e2 (сотые градуса): 84.40 -> 8440
   assert(data.course_true.raw == 8440);
@@ -339,8 +338,8 @@ void test_coordinates_variants() {
 
 void test_packet_crcs() {
   // Те же пакеты, что в benchmark/main.cpp (TEST_PACKETS).
-  // Проверяем, что заявленная контрольная сумма совпадает с вычисленной,
-  // иначе бенчмарк молча отбраковал бы все пакеты.
+  // Проверяет совпадение контрольной суммы из пакета/сентенции с вычисленным по принятым данным пакета значением,
+  // иначе бенчмарк молча отбраковал бы все пакеты/сентенции.
   constexpr std::array<std::string_view, 6> packets = {{
       "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47",
       "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A",
@@ -356,21 +355,21 @@ void test_packet_crcs() {
     const int n1 = hex_val(p[star + 1]);
     const int n2 = hex_val(p[star + 2]);
     assert(n1 >= 0 && n2 >= 0);
-    const uint8_t expected = static_cast<uint8_t>((n1 << 4) | n2);
+    [[maybe_unused]] const uint8_t expected = static_cast<uint8_t>((n1 << 4) | n2);
     assert(nmea_crc(p) == expected);
   }
   std::cout << "  test_packet_crcs passed\n";
 }
 
 void test_fields_without_decimal_point() {
-  // Некоторые приёмники передают числовые поля БЕЗ десятичной точки
+  // Некоторые GNSS-приёмники передают числовые поля БЕЗ десятичной точки
   // (Таблица 6: точка и дробь опциональны). Парсер должен трактовать их как
   // целые значения в фиксированном масштабе поля:
   //   скорость "022" -> 22.000 узла, курс "084" -> 84.00 deg,
   //   высота "545" -> 545.00 м, HDOP "1" -> 1.00.
   Parser parser;
 
-  // RMC без точек: координаты, скорость и курс.
+  // RMC без десятичных точек: координаты, скорость и курс.
   const auto rmc = with_crc(
       "$GPRMC,123519,A,4807,N,01131,E,022,084,230394,003.1,W");
   assert(parser.parse_line(rmc));
@@ -383,7 +382,7 @@ void test_fields_without_decimal_point() {
   assert(approx_equal(parser.data().latitude_deg(), 48.0 + 7.0 / 60.0, 1e-5));
   assert(approx_equal(parser.data().longitude_deg(), 11.0 + 31.0 / 60.0, 1e-5));
 
-  // GGA без точек: высота и HDOP.
+  // GGA без десятичных точек: высота и HDOP.
   const auto gga = with_crc(
       "$GPGGA,123519,4807,N,01131,E,1,08,1,545,M,47.0,M,,");
   assert(parser.parse_line(gga));
@@ -392,7 +391,7 @@ void test_fields_without_decimal_point() {
   assert(parser.data().hdop_e2 == 100);              // 1.00
   assert(approx_equal(parser.data().hdop_value(), 1.0));
 
-  // VTG без точек: курс и обе скорости (узлы и км/ч).
+  // VTG без десятичных точек: курс и обе скорости (узлы и км/ч).
   const auto vtg = with_crc(
       "$GPVTG,084,T,085,M,022,N,041,K");
   assert(parser.parse_line(vtg));

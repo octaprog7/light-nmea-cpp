@@ -1,8 +1,7 @@
 /*
  * LightNMEA - Ultra-fast NMEA GPS parser
  *
- * Пример чтения NMEA-данных напрямую с последовательного порта (/dev/ttyXXX)
- * на POSIX. Показывает связку:
+ * Пример чтения данных NMEA из последовательного порта (/dev/ttyXXX) на POSIX. Показывает связку:
  *
  *   SerialStream (UART) -> NMEAStreamReader -> Parser
  *
@@ -36,7 +35,7 @@ uint32_t get_time_ms() {
 
 // Callback для каждого готового пакета
 void on_packet(bool recognized, bool valid, Constellation cst) {
-  // Печатаем только валидные пакеты с координатами.
+  // Вывожу в std::cout валидные пакеты с координатами.
   // (Здесь можно собирать статистику/отправлять по сети и т.д.)
   if (!recognized || !valid)
     return;
@@ -61,7 +60,7 @@ int main(int argc, char **argv) {
   reader.set_anti_spam_interval(0); // 0 = фильтр выключен
 
   while (g_running && uart.is_open()) {
-    // Читаем доступные байты, формируем пакеты и сразу передаём парсеру.
+    // Читаю доступные байты, формирую пакеты и передаю в парсер.
     reader.read_available(parser, uart, get_time_ms, on_packet);
 
     // После обработки можно получить доступ к распарсенным данным:

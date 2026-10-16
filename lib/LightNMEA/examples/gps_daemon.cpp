@@ -11,7 +11,7 @@
  *
  * Сборка (из директории examples/):
  *   g++ -std=c++17 -O2 -I../include gps_daemon.cpp -o gps_daemon
- *   (или через CMake: см. lib/LightNMEA/CMakeLists.txt, цель gps_daemon)
+ *   (или вызовом CMake: см. lib/LightNMEA/CMakeLists.txt, цель gps_daemon)
  *
  * Запуск:
  *   ./gps_daemon /dev/ttyACM0 9600 /tmp/gps.csv          # foreground
@@ -174,7 +174,7 @@ int main(int argc, char **argv) {
 
   while (g_running) {
     // Порт может быть временно недоступен (устройство переподключено) -
-    // переоткрываем с паузой.
+    // переоткрывает с паузой.
     if (!uart.is_open()) {
       if (uart.open(device, static_cast<uint32_t>(baud))) {
         std::fprintf(stderr, "[gps_daemon] opened %s @ %d baud\n", device, baud);
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
       }
     }
 
-    // Читаем доступные байты, собираем пакеты и передаём парсеру.
+    // Читает доступные байты, собирает пакеты и передаёт парсеру.
     reader.read_available(parser, uart, get_time_ms);
 
     // Одна CSV-строка на новое валидное положение.

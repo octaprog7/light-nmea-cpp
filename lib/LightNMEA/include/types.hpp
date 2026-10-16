@@ -16,7 +16,7 @@ namespace scale
 {
     constexpr int32_t COORD  = 10'000'000; // 1e-7 degrees (~1.1 cm precision)
     constexpr int32_t HEADING = 100;       // 1e-2 degrees (масштаб курса Heading)
-    constexpr int32_t SPEED   = 1000;      // универсальный масштаб x1000 (узлыx1000, км/чx1000)
+    constexpr int32_t SPEED   = 1000;      // Универсальный масштаб x1000 (узлы x1000, км/ч x1000)
 }
 
 /**
@@ -72,7 +72,7 @@ struct Longitude
 /**
  * @brief Курс (Heading).
  * Диапазон: [0, 36000) (т.е. 0.00 .. 359.99)
- * Главная фишка: операторы сами обрабатывают переход через 360 градусов!
+ * Особенность: операторы сами обрабатывают переход границы 360 градусов!
  */
 struct Heading
 {
@@ -119,12 +119,12 @@ struct Heading
 
 /**
  * @brief Скорость (Speed).
- * Универсальный целочисленный масштаб x1000: тысячные узла, тысячные км/ч и т.п.
+ * Универсальный целочисленный масштаб x1000: тысячные доли узла, тысячные доли км/ч и т.п.
  * Единицы определяются контекстом (см. speed_kn_x1000 / speed_kmh_x1000 в парсере).
  */
 struct Speed
 {
-    int32_t raw = 0; // значение в масштабе x1000
+    int32_t raw = 0; // Значение в масштабе x1000
 
     constexpr Speed() = default;
     constexpr explicit Speed(int32_t raw_val) : raw(raw_val) {}

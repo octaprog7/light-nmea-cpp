@@ -1,0 +1,38 @@
+# ============================================================================
+# LightNMEA Doxygen configuration
+# ============================================================================
+# Генерация API reference: doxygen Doxyfile
+# Результат: docs/html/index.html (выгрузить на GitHub Pages - .github/workflows/pages.yml)
+# ============================================================================
+
+PROJECT_NAME           = "LightNMEA"
+PROJECT_BRIEF          = "Ultra-fast NMEA GPS parser for embedded systems"
+PROJECT_NUMBER         = 1.0.0
+OUTPUT_DIRECTORY       = docs
+INPUT                  = include
+RECURSIVE              = YES
+USE_MDFILE_AS_MAINPAGE = README.md
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+
+EXTRACT_ALL            = YES
+EXTRACT_STATIC         = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_PACKAGE        = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+HTML_DYNAMIC_SECTIONS  = NO
+HTML_COLORSTYLE_HUE    = 220
+HTML_COLORSTYLE_SAT    = 100
+
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+QUIET                  = YES

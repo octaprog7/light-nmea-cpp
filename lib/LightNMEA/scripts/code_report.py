@@ -2,8 +2,8 @@
 """code_report.py - report on the compiled release code of LightNMEA.
 
 Python-реализация анализа, ранее бывшего в code_report.sh.
-Весь анализ построен на вызове СТАНДАРТНЫХ утилит GNU binutils
-(size / nm / objdump / readelf / file) через subprocess.
+Весь анализ построен на вызове утилит GNU binutils
+(size / nm / objdump / readelf / file) вызовом subprocess.
 
 Отчёт показывает:
   1. Code size: .text / .data / .bss / .rodata (size), Flash = text+data(+rodata),
@@ -216,7 +216,7 @@ def fmt_bytes(b: int) -> str:
 
 
 def detect_arch(path: str) -> str:
-    """Определяет архитектуру файла: file -b, затем readelf -h."""
+    """Определяет архитектуру файла: file -b, потом readelf -h."""
     desc = ""
     if have("file"):
         proc = run_tool(["file", "-b", path])
@@ -256,11 +256,11 @@ def pick_tools(arch: str) -> Dict[str, str]:
 
 
 # ---------------------------------------------------------------------------
-# Получение данных от binutils
+# Возврат данных от binutils
 # ---------------------------------------------------------------------------
 
 def disasm_lines(tools: Dict[str, str], f: str, *, raw: bool) -> List[str]:
-    """Строки objdump -d; raw=True - с байтами кода (для подсчёта ширины)."""
+    """Строки objdump -d; raw=True - с байт-кодом (для подсчёта ширины)."""
     argv = [tools["objdump"], "-d"]
     if not raw:
         argv.append("--no-show-raw-insn")
@@ -468,7 +468,7 @@ def report_fpu(r: Report, f: str, arch: str) -> None:
     r.hdr("2. FPU (objdump -d + nm -u)")
     fpu_re = FPU_RES.get(arch, FPU_RES["generic"])
 
-    # Считаем только строки реальных инструкций (не .word/.byte-данные,
+    # считаю строки только реальных инструкций (не .word/.byte-данные,
     # не адреса меток).
     lines = [ln for ln in disasm_lines(r.tools, f, raw=False)
              if INSN_LINE_RE.match(ln)]
@@ -560,8 +560,7 @@ def report_density(r: Report, f: str, arch: str) -> None:
     # метки имеют формат "<имя>:", данные - ".word"/".byte"/... и не попадают).
     n = count_insns(r.tools, f)
 
-    # Сумма байтов кода: в raw-выводе после "addr:" идут hex-токены кода,
-    # затем мнемоника.
+    # Сумма байт-кода: в raw-выводе после "addr:" идут hex-токены кода, затем мнемоника.
     b = instruction_bytes(disasm_lines(r.tools, f, raw=True))
 
     avg = f"{b / n:.2f}" if n > 0 else "n/a"
@@ -585,7 +584,7 @@ def report_density(r: Report, f: str, arch: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Краткий отчёт (--quick): только факты, одной таблицей
+# Краткий отчёт (--quick): факты, одной таблицей
 # ---------------------------------------------------------------------------
 
 def report_brief(r: Report, f: str, arch: str) -> int:

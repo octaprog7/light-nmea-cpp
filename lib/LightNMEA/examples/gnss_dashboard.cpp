@@ -12,7 +12,7 @@
  *
  * Формат каждой строки определяется автоматически функцией detect_format()
  * (как в Python-версии):
- *   - подготовленный поток платы: CSV, 12 полей через запятую;
+ *   - подготовленный поток платы: CSV, 12 полей;
  *   - сырой поток NMEA-0183: сентенции $XXYYY,...*HH (light_nmea::Parser);
  *   - системные сообщения MCU: "SYS_MSG:<тип>:<данные>".
  *
@@ -76,7 +76,7 @@ constexpr int CONTENT_START_Y = 2;
 constexpr int MIN_TERM_HEIGHT = 24;
 constexpr int MIN_TERM_WIDTH = 80;
 
-// Активность логирования: если данных нет 10 секунд - считаем неактивным
+// Активность логирования: если данных нет 10 секунд - считается неактивным
 constexpr double LOG_ACTIVITY_TIMEOUT_S = 10.0;
 
 // Цвета
@@ -132,7 +132,7 @@ std::wstring from_utf8(const char *s) noexcept {
 std::wstring wstr(const std::string &s) noexcept { return from_utf8(s.c_str()); }
 
 // Форматирует double с фиксированной точностью и ТОЧКОЙ-разделителем,
-// не завися от локали (printf/vswprintf в ru_RU пишет запятую, что ломает
+// не зависит от локали (printf/vswprintf в ru_RU пишет запятую, что ломает
 // чтение координат). std::to_chars всегда использует десятичную точку.
 std::wstring wfnum(double v, int prec) noexcept {
   char buf[64];
@@ -347,7 +347,7 @@ private:
 
     draw_labeled(L"Speed:", wstr(format_speed(d.speed_kmh)));
 
-    // Курс доступен, если есть значение; иначе объясняем причину отсутствия
+    // Курс доступен, если есть значение; иначе объясняю причину его отсутствия
     std::wstring course_s;
     const double speed_kmh = !std::isnan(d.speed_kmh) ? d.speed_kmh : 0.0;
     if (!std::isnan(d.course)) {
@@ -430,7 +430,7 @@ public:
     draw_line(std::wstring(DIVIDER_LENGTH, L'-'), ATTR_DIM);
 
     if (stats.log.is_writing() && stats.last_data_time > 0) {
-      // Проверяем реальную активность данных
+      // Проверяю реальную активность данных
       const bool active =
           (now() - stats.last_data_time) < LOG_ACTIVITY_TIMEOUT_S;
       draw_conditional(active, L"Logging: ACTIVE",
@@ -617,13 +617,13 @@ private:
             stats_.is_stationary = true;
           }
         }
-        // Точки собираем всё время "покоя" - и во время таймера (33 с), и в
+        // Точки собираю всё время "покоя" - и во время таймера (33 с), и в
         // стационарном режиме, без сброса при переходе. Благодаря этому к
-        // моменту входа в режим точности выборка уже накоплена, и 2D Error /
+        // моменту входа в режим точности, выборка уже накоплена, и 2D Error /
         // Drift показывают реальные значения сразу, а не нули первых секунд.
         stats_.accuracy.add_point(data_);
       } else {
-        // Движение - сбрасываем стационарность и трекер точности
+        // По изменению GNSS-координат обнаружено движение - сбрасываю стационарность и трекер точности
         reset_stationary_state(stats_);
       }
     } else if (res.is_error) {
@@ -712,7 +712,7 @@ int main(int argc, char **argv) {
               "Connect the board or specify the port:\n"
               "  gnss_dashboard /dev/ttyACM0\n"
               "  gnss_dashboard /dev/ttyUSB0 9600\n");
-      // stderr перенаправлен в mcu_debug.log - продублируем на консоль
+      // stderr перенаправлен в mcu_debug.log - дублирую на консоль
       fprintf(stdout,
               "gnss_dashboard: ERROR - no USB-UART ports found, exiting.\n"
               "  Details and all diagnostics: see 'mcu_debug.log'.\n"

@@ -21,19 +21,18 @@
  * @brief Конфигурируемый бенчмарк пропускной способности NMEA-парсеров.
  *
  * Позволяет задать тип сентенций (RMC/GGA/VTG/GLL/ALL), процент повреждённых
- * пакетов (50% битый CRC + 50% обрыв), объём в тысячах пакетов, порядок выбора
+ * пакетов (50% 'битый' CRC + 50% обрыв содержимого), объём в тысячах пакетов, порядок выбора
  * (RND/SEQ) и реализацию парсера (LIGHT/MINMEA/TINYGPS/LIBNAMEA/ALL).
- * Сравниваемые реализации лежат в benchmarks/compare/third_party.
+ * Сравниваемые реализации парсеров находятся в benchmarks/compare/third_party.
  *
- * Горячий контур: предзаполненный пул готовых строк + предгенерированный план
- * индексов (1 байт/пакет), разбитый на плотные последовательности здоровых и
- * испорченных пакетов - внутри таймера нет ни генерации текста, ни memcpy.
+ * Горячий путь: строки уже в буфере, плюс план индексов (1 байт/пакет),
+ * разбитый на последовательности правильных и поврежденных пакетов - внутри таймера нет генерации текста и memcpy.
  */
 
 #include "light_nmea.hpp"
 #include "nav_gen.hpp"
 
-// Конкуренты для сравнения (лежат в benchmarks/compare/third_party):
+// Конкуренты для сравнения находятся в benchmarks/compare/third_party:
 #include "minmea.h"
 #include "TinyGPS++.h"
 #include "nmea.h" // libnmea (jacketizer): статическая сборка, см. CMakeLists.txt
@@ -62,15 +61,14 @@ using namespace light_nmea;
  * @brief Тип NMEA-сентенции для параметрического режима бенчмарка.
  *
  * RMC/GGA/VTG/GLL - конкретные типы; ALL - все поддерживаемые парсером типы
- * (неподдерживаемые, например GSV, в тестовый поток не включаются,
- * см. matches_type()).
+ * (неподдерживаемые, например GSV, отсутствуют в тестовом потоке, см. matches_type()).
  */
 enum class SentenceType { RMC, GGA, VTG, GLL, ALL, INVALID };
 
 /**
- * @brief Возвращает копию строки в верхнем регистре.
- * @param s Исходная строка (передаётся по значению - копируется).
- * @return Строка, преобразованная через std::toupper.
+ * @brief Возвращает копию строки, но заглавными буквами/капсом (caps lock).
+ * @param s Исходная строка (передаётся по значению, то есть копируется).
+ * @return Строка, преобразованная вызовом std::toupper.
  */
 static std::string to_upper_copy(std::string s) {
   std::transform(s.begin(), s.end(), s.begin(),
@@ -118,7 +116,7 @@ static SentenceType parse_type(const std::string &s) {
  * LIGHT - LightNMEA (header-only, эталон), MINMEA - kosma/minmea (чистый C),
  * TINYGPS - mikalhart/TinyGPSPlus (побайтовый encode(), Arduino-стиль),
  * LIBNAMEA - jacketizer/libnmea (in-place токенизация + malloc/free на пакет),
- * ALL - прогон одного и того же плана данных через все реализации подряд.
+ * ALL - прогон одного и того же плана данных по всем реализациям подряд.
  */
 enum class BenchImpl { LIGHT, MINMEA, TINYGPS, LIBNAMEA, ALL };
 
@@ -320,7 +318,7 @@ private:
 volatile int64_t g_sink = 0;
 
 /**
- * @brief Прогон набора готовых пакетов через LightNMEA (классический режим).
+ * @brief Прогон парсинга набора готовых пакетов (классический режим).
  *
  * @param name       Название сценария для вывода.
  * @param packets    Вектор готовых NMEA-строк.
@@ -345,7 +343,7 @@ void benchmark_packets(const std::string &name,
     for (const auto &packet : packets) {
       if (parser.parse_line(packet)) {
         success++;
-        // новые strong type поля .raw
+        // Новые strong type поля .raw
         g_sink += parser.data().lat.raw;
         g_sink += parser.data().lon.raw;
         g_sink += parser.data().speed_kn_x1000.raw;
@@ -566,9 +564,9 @@ static CorruptPool build_corrupt_pool(const std::vector<PoolEntry> &pool,
   CorruptPool cp;
   cp.offs.push_back(0);
   if (n == 0) return cp;
-  // Дополняем до степени двойки: в горячем цикле маска вместо деления.
+  // Дополняет до степени двойки: в горячем цикле маска вместо деления.
   // Минимум 64 записи - план использует фиксированную маску 0x3F (0..63),
-  // при меньшем np индексы выходили бы за пределы массива.
+  // при меньшем значении np (Np) индексы выходят за пределы массива.
   size_t np = 64;
   while (np < n) np <<= 1;
   cp.data.reserve(np * 96);
@@ -584,7 +582,7 @@ static CorruptPool build_corrupt_pool(const std::vector<PoolEntry> &pool,
     const size_t len = gen_sentence(pool, kind, rng, buf, sizeof(buf), &ty);
     cp.data.insert(cp.data.end(), buf, buf + len);
     cp.offs.push_back(cp.data.size()); // длина = len (без '\0')
-    cp.data.push_back('\0');           // NUL-терминация для minmea
+    cp.data.push_back('\0');           // NUL-завершение для minmea
     cp.type.push_back(ty);
     cp.is_trunc.push_back(kind == CorruptKind::Truncated ? 1u : 0u);
   }
@@ -607,16 +605,16 @@ static inline int type_index(char t) noexcept {
 }
 
 /**
- * @brief Основной таймируемый прогон: один план данных через выбранный парсер.
+ * @brief Основной измеряемый прогон: один набор данных прогоняется выбранным парсером.
  *
- * Горячий цикл: здоровые сентенции берутся из пула по индексу плана,
- * испорченные - из предзаполненного буфера. Внутри таймера нет ни генерации
- * текста, ни memcpy (кроме libnmea, которому нужен изменяемый scratch-буфер).
+ * Горячий цикл: 'здоровые' сентенции берутся из пула по индексу плана,
+ * 'испорченные' - из предварительно заполненного буфера. Внутри цикла нет генерации
+ * текста, memcpy (кроме libnmea, которому нужен изменяемый временный буфер).
  * Измеряется пропускная способность в pkt/s по всем пакетам плана.
  *
  * @param name       Заголовок секции вывода.
- * @param pool       Пул здоровых готовых строк.
- * @param err_pct    Процент повреждённых пакетов 0..100.
+ * @param pool       Пул 'здоровых' готовых строк.
+ * @param err_pct    Процент 'повреждённых' пакетов 0..100.
  * @param count      Общее число пакетов в прогоне.
  * @param iterations Число повторных замеров (усреднение).
  * @param sequential true - SEQ-план, false - RND-план.
@@ -626,10 +624,10 @@ static void benchmark_stream(const std::string &name,
                              const std::vector<PoolEntry> &pool,
                              int err_pct, size_t count, int iterations,
                              bool sequential, BenchImpl impl) {
-  // Буфер испорченных сентенций: не больше CORRUPT_POOL_MAX вариантов.
-  // Больший размер приводит к промахам кэша при случайном доступе к данным
+  // Буфер 'битых' сентенций: не больше CORRUPT_POOL_MAX вариантов.
+  // Больший размер приводит к промахам кэша ЦПУ при случайном доступе к данным
   // за пределами кэша; выбор с возвращением из небольшого пула статистически
-  // эквивалентен, но остаётся в L1/L2.
+  // эквивалентен, но остаётся в L1/L2 кэше.
   constexpr size_t CORRUPT_POOL_MAX = 64;
   size_t corrupt_n =
       static_cast<size_t>(count) * static_cast<unsigned>(err_pct) / 100;
@@ -637,7 +635,7 @@ static void benchmark_stream(const std::string &name,
   const size_t corrupt_pool_size = std::min<size_t>(corrupt_n, CORRUPT_POOL_MAX);
   const CorruptPool cp = build_corrupt_pool(pool, corrupt_pool_size, 0xC0FFEEull);
 
-  // Здоровый пул дополняем до степени двойки.
+  // пул правильных сентенций дополняю до степени двойки.
   // Циклическое заполнение сохраняет пропорции типов в распределении.
   // Минимум 32 записи: план использует фиксированную маску 0x1F (0..31),
   // при меньшем psize индексы выходили бы за пределы pool_p2.
@@ -651,11 +649,11 @@ static void benchmark_stream(const std::string &name,
   const uint16_t thr = static_cast<uint16_t>(
       static_cast<uint32_t>(err_pct) * 65535u / 100u);
 
-  // Предгенерируем план выбора пакетов (1 байт на пакет) ДО замера:
+  // Предварительная генерация плана выбора пакетов (1 байт на пакет) до замера:
   // bit7 = "испорчен", bits 0..5 = индекс (здоровый <=31, испорченный <=63).
   // SEQ: предсказуемый циклический обход пулов + регулярный паттерн ошибок
   //      (каждый i с (i % 100) < err_pct) - максимум для префетчера и веток.
-  // RND: случайные индексы через ГПСЧ (реалистичный "шумный" поток).
+  // RND: случайные индексы с помощью ГПСЧ (реалистичный "шумный" поток с ошибками в данных).
   std::vector<uint8_t> plan(count);
   if (sequential) {
     size_t hi = 0, ci = 0;
@@ -674,7 +672,7 @@ static void benchmark_stream(const std::string &name,
   }
 
   // Плоская таблица испорченных сентенций: один компактный struct вместо
-  // двойной индирекции cp.at(k) (offs[k], offs[k+1]).
+  // двойного обращения cp.at(k) (offs[k], offs[k+1]).
   std::vector<CorruptEntry> corrupt_entries(cp.count());
   for (size_t k = 0; k < corrupt_entries.size(); ++k) {
     const std::string_view sv = cp.at(k);
@@ -682,9 +680,7 @@ static void benchmark_stream(const std::string &name,
                           cp.type[k], cp.is_trunc[k]};
   }
 
-  // Разбиение плана на две плотные последовательности (здоровые/испорченные).
-  // Убирает случайную ветку "bad" из таймируемого цикла: каждый проход
-  // однороден, прогноз ветвлений идеален.
+  // Деление плана на две последовательности ('здоровые'/'испорченные').
   std::vector<uint8_t> plan_ok, plan_bad;
   plan_ok.reserve(count);
   plan_bad.reserve(count);
@@ -693,7 +689,7 @@ static void benchmark_stream(const std::string &name,
     else plan_ok.push_back(p);
   }
 
-  // Вся статистика, не зависящая от парсера, вычисляется ДО таймера:
+  // Вся статистика, не зависящая от парсера, вычисляется ДО замера времени:
   // распределение типов, число повреждённых и оборванных - по плану.
   const size_t corrupt_total = plan_bad.size();
   size_t broken_total = 0;
@@ -738,7 +734,7 @@ static void benchmark_stream(const std::string &name,
         for (size_t j = 0; j < ce.len; ++j) gps.encode(ce.d[j]);
         gps.encode('\n');
       }
-      success = gps.passedChecksum(); // кол-во предложений с корректной CRC
+      success = gps.passedChecksum(); // количество предложений с корректной CRC
       g_sink = static_cast<int64_t>(success);
     } else if (impl == BenchImpl::MINMEA) {
       // minmea: построчный разбор NULL-terminated строк (без CRC внутри).
@@ -752,9 +748,9 @@ static void benchmark_stream(const std::string &name,
       }
       g_sink = static_cast<int64_t>(success);
     } else if (impl == BenchImpl::LIBNAMEA) {
-      // libnmea: мутирует входной буфер на месте (токенизация через '\0'),
+      // libnmea: меняет входной буфер на месте (токенизация по символу '\0'),
       // на каждый пакет malloc/free (nmea_parse/nmea_free).
-      // Копируем сентенцию в стековый scratch: валидность требует \r\n и <=82.
+      // Копирует данные (сентенцию) во временное хранилище в стеке
       char scratch[96];
       for (size_t n = 0; n < plan_ok.size(); ++n) {
         const PoolEntry &e = pool_p2[plan_ok[n] & 0x1Fu];
@@ -872,7 +868,7 @@ static int file_mode(const std::string &filename) {
  * @brief Классический прогон всех сценариев (без аргументов CLI).
  *
  * Пять сценариев по 1M пакетов: уникальные RMC, уникальные GGA, смесь RMC/GGA,
- * смесь с невалидными CRC и разнородный набор nav_gen (с распределением типов).
+ * смесь с невалидными по CRC пакетами и разнородный набор nav_gen (с распределением типов).
  * @return 0 - всегда.
  */
 static int legacy_full_suite() {
@@ -930,7 +926,7 @@ static int legacy_full_suite() {
 /**
  * @brief Параметрический режим: тип + % ошибок + объём + порядок + реализация.
  *
- * Для impl == ALL один и тот же план и данные прогоняются через все четыре
+ * Для impl == ALL один и тот же план и данные прогоняются всеми четырьмя
  * реализации (LIGHT, MINMEA, TINYGPS, LIBNAMEA) - честное сравнение на
  * идентичном входном потоке.
  * @return Код возврата (0 - успех).
@@ -950,7 +946,7 @@ static int parametric_mode(SentenceType type, int err_pct, size_t count,
       std::to_string(err_pct) + "% errors, " + std::to_string(count) + " pkt";
 
   if (impl == BenchImpl::ALL) {
-    // Тот же план и данные прогоняются через все четыре реализации.
+    // Тот же план и данные прогоняются всеми четырьмя реализациями.
     for (const BenchImpl i : {BenchImpl::LIGHT, BenchImpl::MINMEA, BenchImpl::TINYGPS,
                               BenchImpl::LIBNAMEA}) {
       benchmark_stream(base + " [" + impl_name(i) + "]", pool, err_pct, count,
@@ -967,14 +963,14 @@ static int parametric_mode(SentenceType type, int err_pct, size_t count,
  * @brief Точка входа: разбор аргументов (argparse-подобный CLI) и запуск режима.
  *
  * Без аргументов - legacy_full_suite(); с параметрами - parametric_mode()
- * (или file_mode при --file). Поддерживаются флаги -t/-e/-n/-o/-i/-f и
+ * (или file_mode при --file). Поддерживаемые флаги -t/-e/-n/-o/-i/-f и
  * позиционные [TYPE] [ERRORS] [COUNT_K] [ORDER] [IMPL].
  * @return Код возврата процесса.
  */
 int main(int argc, char *argv[]) {
   std::cout << "=== LightNMEA Extended Benchmark ===\n";
   std::cout << "Compiler: " << __VERSION__ << "\n";
-// Честная метка оптимизации. Точные флаги передаёт скрипт сборки через
+// Метка оптимизации. Точные флаги. Передаёт скрипт сборки флагом
 // -DBENCH_OPT_STR="..."; иначе - только факт наличия оптимизации, т.к.
 // макрос __OPTIMIZE__ у GCC/Clang всегда равен 1 и уровень не раскрывает.
 #if defined(BENCH_OPT_STR)
@@ -1024,7 +1020,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // Позиционные: [TYPE] [ERRORS] [COUNT_K] [ORDER] [IMPL], либо путь к файлу
+  // Позиционные аргументы: [TYPE] [ERRORS] [COUNT_K] [ORDER] [IMPL], либо путь к файлу
   if (!pos.empty() && file_path.empty()) {
     const std::string p0 = to_upper_copy(pos[0]);
     if (parse_type(p0) != SentenceType::INVALID) {
@@ -1057,7 +1053,7 @@ int main(int argc, char *argv[]) {
   const BenchImpl impl = parse_impl(impl_s);
 
   if (!have_params) {
-    return legacy_full_suite(); // без аргументов - классический прогон всех сценариев
+    return legacy_full_suite(); // без аргументов - прогон всех сценариев
   }
 
   return parametric_mode(type, err_pct, static_cast<size_t>(count_k) * 1000,

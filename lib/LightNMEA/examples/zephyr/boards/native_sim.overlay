@@ -1,0 +1,11 @@
+/*
+ * LightNMEA Zephyr example - native_sim overlay
+ *
+ * На native_sim UART0 подключён к stdin/stdout: ввод NMEA-строк в терминал попадает в обработчик uart_pipe.
+ */
+
+/ {
+	chosen {
+		zephyr,uart-pipe = &uart0;
+	};
+};

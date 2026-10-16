@@ -13,7 +13,7 @@ bool approx_equal(double a, double b, double epsilon = 1e-4) {
 }
 
 // ============================================================================
-// Тест 1: TXT формат
+// Тест 1: формат TXT
 // ============================================================================
 void test_txt_format() {
   Parser parser;
@@ -27,7 +27,7 @@ void test_txt_format() {
   (void)len;
   std::string output(buffer);
 
-  // Проверяем наличие ключевых строк
+  // Проверка наличия ключевых строк
   assert(output.find("Fix: Yes") != std::string::npos);
   assert(output.find("satellites: 0") != std::string::npos);
   assert(output.find("latitude: 48.117300") != std::string::npos);
@@ -37,7 +37,7 @@ void test_txt_format() {
   assert(output.find("time: 12:35:19 UTC") != std::string::npos);
   assert(output.find("date: 23.03.94") != std::string::npos);
 
-  // Проверяем длину
+  // Проверка длины
   assert(len > 0);
   assert(len < sizeof(buffer));
 
@@ -45,7 +45,7 @@ void test_txt_format() {
 }
 
 // ============================================================================
-// Тест 2: CSV формат
+// Тест 2: формат CSV
 // ============================================================================
 void test_csv_format() {
   Parser parser;
@@ -62,7 +62,7 @@ void test_csv_format() {
   // CSV должен содержать запятые
   assert(output.find(',') != std::string::npos);
 
-  // Проверяем поля
+  // Проверка 'полей'
   assert(output.find("1,") == 0);                        // valid = 1
   assert(output.find(",0,") != std::string::npos);       // satellites = 0
   assert(output.find("48.117300") != std::string::npos); // latitude
@@ -80,7 +80,7 @@ void test_csv_format() {
 }
 
 // ============================================================================
-// Тест 3: JSON формат
+// Тест 3: формат JSON
 // ============================================================================
 void test_json_format() {
   Parser parser;
@@ -98,7 +98,7 @@ void test_json_format() {
   assert(output[0] == '{');
   assert(output[len - 1] == '}');
 
-  // Проверяем ключи и значения
+  // Проверка ключей и значений
   assert(output.find("\"valid\":true") != std::string::npos);
   assert(output.find("\"satellites\":0") != std::string::npos);
   assert(output.find("\"latitude\":48.117300") != std::string::npos);
@@ -115,7 +115,7 @@ void test_json_format() {
 }
 
 // ============================================================================
-// Тест 4: Compact формат
+// Тест 4: формат Compact
 // ============================================================================
 void test_compact_format() {
   Parser parser;
@@ -132,7 +132,7 @@ void test_compact_format() {
   // Compact должен быть однострочным (без \n)
   assert(output.find('\n') == std::string::npos);
 
-  // Проверяем содержимое
+  // Проверка содержимого
   assert(output.find("FIX") == 0);
   assert(output.find("satellites=0") != std::string::npos);
   assert(output.find("48.117300,11.516667") != std::string::npos);
@@ -157,7 +157,7 @@ void test_buffer_overflow() {
 
   const auto &data = parser.data();
 
-  // Очень маленький буфер
+  // Самый малый буфер
   char small_buffer[10];
   size_t len = to_txt(data, small_buffer, sizeof(small_buffer));
   (void)len;
@@ -165,7 +165,7 @@ void test_buffer_overflow() {
   assert(len <= sizeof(small_buffer) - 1);
   assert(small_buffer[sizeof(small_buffer) - 1] == '\0');
 
-  // Буфер нулевого размера
+  // Буфер размера ноль!
   char zero_buffer[1];
   len = to_txt(data, zero_buffer, sizeof(zero_buffer));
   assert(len == 0);
@@ -175,13 +175,13 @@ void test_buffer_overflow() {
 }
 
 // ============================================================================
-// Тест 6: Пустые данные
+// Тест 6: Нет данных
 // ============================================================================
 void test_empty_data() {
   NMEAData empty_data;
   char buffer[512];
 
-  // TXT с пустыми данными
+  // TEXT без данных
   size_t len = to_txt(empty_data, buffer, sizeof(buffer));
   std::string output(buffer);
   (void)len;
@@ -189,14 +189,14 @@ void test_empty_data() {
   assert(output.find("NO_FIX") != std::string::npos ||
          output.find("Fix: No") != std::string::npos);
 
-  // JSON с пустыми данными
+  // JSON без данных
   len = to_json(empty_data, buffer, sizeof(buffer));
   output = std::string(buffer);
 
   assert(output.find("\"valid\":false") != std::string::npos);
   assert(output.find("\"satellites\":0") != std::string::npos);
 
-  // Compact с пустыми данными
+  // Compact без данных
   len = to_compact(empty_data, buffer, sizeof(buffer));
   output = std::string(buffer);
 
@@ -280,7 +280,7 @@ void test_to_format() {
   char buffer[512];
 
   // TXT
-  size_t len = to_format(data, buffer, sizeof(buffer), Format::TXT);
+  [[maybe_unused]] size_t len = to_format(data, buffer, sizeof(buffer), Format::TXT);
   assert(len > 0);
   assert(std::string(buffer).find("Fix: Yes") != std::string::npos);
 
@@ -303,7 +303,7 @@ void test_to_format() {
 }
 
 // ============================================================================
-// Тест 10: GGA данные (с высотой и спутниками)
+// Тест 10: GGA сентенции (с высотой и спутниками)
 // ============================================================================
 void test_gga_format() {
   Parser parser;

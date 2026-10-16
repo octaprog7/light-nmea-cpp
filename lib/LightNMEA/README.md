@@ -1,17 +1,22 @@
 # light-nmea-cpp
 
+[![CI](https://github.com/octaprog7/light-nmea-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/octaprog7/light-nmea-cpp/actions/workflows/ci.yml)
+[![Docs](https://github.com/octaprog7/light-nmea-cpp/actions/workflows/pages.yml/badge.svg)](https://github.com/octaprog7/light-nmea-cpp/actions/workflows/pages.yml)
+
 An ultra-fast NMEA 0183 (GPS) parser for embedded systems and Arduino.
 
 > **Full repository structure** (all files and their purpose): see the [root README](../../README.md#repository-structure). This document describes the library.
 
 ## Features
 
-- **Header-only**: header files only
+- **Header-only**: header files only (plus an optional single-header variant, `lightnmea_single.hpp`)
 - **No dynamic heap allocation**: does not use the heap
 - **Integer arithmetic**: does not use the FPU
 - **High speed**: 11+ million packets per second on x86 (R7 2700)
 - **Small footprint**: ~1.3 KB of Flash, 52 bytes of RAM
 - **Modern C++ (C++17-compatible)**: `constexpr` lookup tables, `[[likely]]` branch hints, strict enums (`enum class`)
+- **C API** (`lightnmea_c.h`): usable from plain C projects
+- **ESP-IDF component**: `esp-idf-component/` (no Arduino required)
 - **Multiple output formats**: TXT, CSV, JSON, Compact
 - **Unit conversion**: speed (km/h, knots, m/s), distance (m, feet, km)
 - **Supported messages/sentences**: RMC, GGA, VTG, GLL
@@ -33,9 +38,6 @@ Add to `platformio.ini`:
 ```ini
 lib_deps = https://github.com/octaprog7/light-nmea-cpp.git
 ```
-
-> The library is not yet published to the PlatformIO Registry, so the
-> git URL is used. Once published, you can use `octaprog7/light-nmea-cpp`.
 
 Or build the bundled examples directly from the repository
 (each example has its own `platformio.ini`):
@@ -153,6 +155,39 @@ Key recommendations:
 * GPSLogger: Writing GPS data to an SD card
 * gps_daemon (POSIX): `SerialStream -> NMEAStreamReader -> Parser -> CSV`
 * gnss_dashboard (Linux, TUI): curses-based GNSS dashboard
+* freertos (host, POSIX port): producer/consumer tasks + FreeRTOS queue
+* zephyr (Zephyr RTOS): `uart_pipe` -> ring buffer -> `NMEAStreamReader`
+
+## RTOS support (FreeRTOS / Zephyr)
+
+The library core (`light_nmea.hpp`, `nmea_stream_reader.hpp`,
+`nmea_formatter.hpp`) is **pure C++17** and does not depend on Arduino or
+POSIX APIs, so it works in any RTOS task without changes. To integrate, you
+only need to implement the abstract `light_nmea::Stream` interface
+(`read()` method) over your UART driver or RTOS queue.
+
+Bundled examples:
+
+* [`examples/freertos/`](examples/freertos/) — FreeRTOS on the host
+  (POSIX port, no hardware required): a producer task reads an NMEA track
+  from a file and sends bytes to a FreeRTOS queue; a consumer task parses
+  them via `NMEAStreamReader` + `Parser`.
+  ```console
+  cd lib/LightNMEA/examples/freertos
+  cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+  cmake --build build -j
+  ./build/freertos_nmea_example
+  ```
+
+* [`examples/zephyr/`](examples/zephyr/) — Zephyr application: reads NMEA
+  from UART via `uart_pipe`, accumulates bytes in a ring buffer and parses
+  them in the main loop. Works on `native_sim` (input via terminal) and on
+  real boards (build verified for nRF52840 DK, see `boards/` overlay).
+  ```console
+  cd lib/LightNMEA/examples/zephyr
+  west build -b nrf52840dk/nrf52840 -d build/nrf52840dk   # real board
+  west build -b native_sim -d build/native_sim            # host (needs gcc-multilib)
+  ```
 
 ## GNSS dashboard (TUI, Linux)
 
@@ -248,6 +283,13 @@ and the number of passes with `BENCH_PASSES` (default 3; the best result is take
 ```console
 BENCH_PACKET_COUNT=100000 ./build_bench_fw.sh pico
 ```
+
+The same benchmark is also available for **RTOS environments**: a FreeRTOS
+(POSIX port, host) and a Zephyr (native_sim / nRF52840 DK) version share the
+same portable core ([`benchmarks/rtos/`](benchmarks/rtos/),
+source code: [`bench_compare_rtos.hpp`](benchmarks/rtos/bench_compare_rtos.hpp)) —
+only the time source and output differ (`clock_gettime` / `k_cycle_get_32()`,
+`printf` / `printk`).
 
 > **Note on firmware size.** The test application itself takes ~9 KB,
 > but the Arduino core for ESP32 (ESP-IDF HAL + newlib stdio) adds

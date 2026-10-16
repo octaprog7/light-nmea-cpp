@@ -43,13 +43,13 @@ def download_gps_traces(output_dir="data/raw", max_pages=10):
                 
             elif response.status_code == 400:
                 print(f"  Error 400: {response.text}")
-                # Пробуем меньший bbox
+                # пробую меньший bbox
                 continue
                 
             else:
                 print(f"  Error {response.status_code}: {response.text}")
                 
-            time.sleep(2)  # Не перегружаем сервер
+            time.sleep(2)  # Не перегружаю сервер
             
         except Exception as e:
             print(f"  Exception: {e}")

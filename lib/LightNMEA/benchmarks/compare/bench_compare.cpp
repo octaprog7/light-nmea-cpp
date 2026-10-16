@@ -134,7 +134,7 @@ Result run_tinygps(const std::vector<std::string> &lines, int iters) {
       gps.encode('\n'); // терминатор строки (в реальном потоке после кадра идёт \n)
     }
     double dt = now_sec() - t0;
-    size_t cur = gps.passedChecksum(); // кол-во предложений с корректной CRC
+    size_t cur = gps.passedChecksum(); // количество предложений с корректной CRC
     if (dt < best) { best = dt; ok = cur; }
   }
   return {best, lines.size(), ok};

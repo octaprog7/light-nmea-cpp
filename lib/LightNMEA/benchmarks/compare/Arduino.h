@@ -1,7 +1,8 @@
 /*
- * Arduino.h - минимальный хост-шим для компиляции TinyGPSPlus вне Arduino.
- * Покрывает только те символы/макросы Arduino, которые реально использует
- * TinyGPSPlus: millis(), byte, математические макросы и <chrono>/<math.h>.
+ * arduino.h — минимальная эмуляция среды Arduino для сборки TinyGPSPlus
+ * вне Arduino IDE. Содержит только те элементы, которые использует библиотека:
+ * millis() для времени, тип byte, нужные макросы, а также доступ к математике
+ * (chrono, math.h). Это позволяет собрать проект в другой среде без лишних зависимостей.
  */
 #ifndef LIGHT_NMEA_ARDUINO_SHIM_H
 #define LIGHT_NMEA_ARDUINO_SHIM_H
@@ -12,13 +13,13 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// Совпадает по сигнатуре и линковке с определением в TinyGPS++.cpp.
+// Совпадает с реализацией в TinyGPS++.cpp (сигнатура + линк)
 unsigned long millis();
 
-// Arduino-типы
+// Типы Arduino
 typedef uint8_t byte;
 
-// Arduino-математические макросы
+// Математические макросы Arduino
 #ifndef PI
 #define PI 3.1415926535897932384626433832795
 #endif

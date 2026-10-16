@@ -114,6 +114,17 @@ public:
     return *this << buf;
   }
 
+  // 8-битные целые (uint8_t/int8_t). Без перегрузок чтение
+  // uint8_t (например, NMEAData::satellites) неоднозначно между
+  // char / uint32_t / int32_t / bool на компиляторах AVR/ARM.
+  BufferWriter &operator<<(uint8_t value) noexcept {
+    return *this << static_cast<uint32_t>(value);
+  }
+
+  BufferWriter &operator<<(int8_t value) noexcept {
+    return *this << static_cast<int32_t>(value);
+  }
+
   // Float с точностью 1 знак
   BufferWriter &operator<<(float value) noexcept {
     char buf[32];

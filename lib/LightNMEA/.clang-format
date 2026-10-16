@@ -1,0 +1,16 @@
+# LightNMEA clang-format configuration
+# Проверка: clang-format --dry-run --Werror $(find . -name '*.cpp' -o -name '*.hpp' -o -name '*.h' -o -name '*.c')
+
+BasedOnStyle: Google
+IndentWidth: 2
+ContinuationIndentWidth: 2
+ColumnLimit: 100
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+SortIncludes: true
+IncludeBlocks: Preserve
+PointerAlignment: Left
+DerivePointerAlignment: false
+SpaceAfterCStyleCast: false
+BreakBeforeBraces: Attach

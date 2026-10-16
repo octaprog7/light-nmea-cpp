@@ -39,7 +39,7 @@ namespace light_nmea {
 // Открывает устройство вида "/dev/ttyUSB0", "/dev/ttyS0", "/dev/ttyAMA0"
 // и настраивает его как "сырой" (raw) порт для NMEA-данных.
 //
-// Соединяется с NMEAStreamReader через абстрактный интерфейс Stream:
+// Соединяется с NMEAStreamReader по абстрактному интерфейсу Stream:
 //   Parser parser;
 //   NMEAStreamReader reader;
 //   SerialStream uart;

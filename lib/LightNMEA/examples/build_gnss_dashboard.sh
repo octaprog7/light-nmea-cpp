@@ -5,7 +5,7 @@
 #
 # Собирает examples/gnss_dashboard.cpp + examples/dash_utils.hpp
 # (dash_utils.hpp - заголовочный модуль без зависимостей от curses)
-# в исполняемый файл gnss_dashboard через CMake-цель gnss_dashboard
+# в исполняемый файл gnss_dashboard вызовом CMake-цель gnss_dashboard
 # (определена в корневом CMakeLists.txt).
 #
 # Требования:
@@ -78,9 +78,9 @@ fi
 # пропустит цель. Предупреждаем заранее, чтобы не было сюрпризов.
 NCURSES_HINT=""
 if command -v pkg-config >/dev/null 2>&1 && pkg-config --exists ncursesw 2>/dev/null; then
-    : # ncursesw найден через pkg-config
+    : # ncursesw найден в pkg-config
 elif [ -f /usr/include/ncursesw/curses.h ] || [ -f /usr/local/include/ncursesw/curses.h ]; then
-    : # ncursesw найден по заголовочному файлу
+    : # ncursesw найден в заголовочном файле
 else
     NCURSES_HINT=" (ncursesw not found!)"
 fi

@@ -97,7 +97,7 @@ enum class Constellation : uint8_t {
 
 enum class FixMode : uint8_t {
   Autonomous = 0, DGPS, Estimated, NotValid, RTKFixed, RTKFloat,
-  // Дополнительные режимы (в конец списка - обратная совместимость
+  // Дополнительные режимы (в конце списка - обратная совместимость
   // числовых значений): GGA quality 3/7/8 и FAA Mode 'P' (NMEA 4.00+).
   PPS, ManualInput, Simulator, Precise
 };
@@ -176,8 +176,8 @@ struct NMEAData {
   Longitude lon;
 
   // --- Скорость (Type-Safe, хранит int32_t внутри) ---
-  Speed speed_kn_x1000;   // тысячные узла (из RMC и VTG, поле N)
-  Speed speed_kmh_x1000;  // тысячные км/ч (из VTG, поле K)
+  Speed speed_kn_x1000;   // тысячные доли узла (из RMC и VTG, поле N)
+  Speed speed_kmh_x1000;  // тысячные доли км/ч (из VTG, поле K)
 
   // --- Курс (Type-Safe, хранит int32_t внутри, масштаб 1e-2 градуса) ---
   Heading course_true;   // истинный курс
@@ -219,7 +219,7 @@ struct NMEAData {
 
   // Единый метод скорости в км/ч. ВСЕГДА конвертирует из узлов
   // (speed_kn_x1000), т.к. узлы - каноническая единица SOG в NMEA
-  // (RMC поле 7 и VTG поле 5). Для прямого значения из VTG (поле K)
+  // (поле 7 RMC и поле 5 VTG). Для прямого значения из VTG (поле K)
   // используйте speed_kmh_from_vtg().
   [[nodiscard]] float speed_kmh() const noexcept {
     return static_cast<float>(speed_kn_x1000.raw) * 0.001852f;
@@ -383,7 +383,7 @@ private:
 
   [[nodiscard]] std::string_view get_field(std::string_view line, uint8_t index) const noexcept;
 
-  // для парсинга координат
+  // Для парсинга координат
   LIGHT_NMEA_ALWAYS_INLINE
   bool parse_coordinates(
       std::string_view line,
@@ -435,18 +435,18 @@ inline bool Parser::parse_line(std::string_view line) noexcept {
   }
 
   // Адресное поле (5.2.1.1): ровно 5 символов, сразу за ним разделитель ",".
-  // Класс символов отдельно не проверяем: talker (байты 1-2) валидирует
-  // таблица созвездий ниже, а форматтер (байты 3-5) - точное сравнение с
+  // Класс символов отдельно не проверяю: talker (байты 1-2) сверяется с таблицей
+  // созвездий ниже, а форматтер (байты 3-5) - точным сравнением с
   // RMC/GGA/VTG/GLL. MIN_PACKET_LEN >= 10 гарантирует доступность line[6].
   if (line[6] != CHAR_COMMA) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_unknown_msg++;
     return false;
   }
 
-  // --- Ранняя дешёвая отбраковка ДО дорогого O(n) CRC-скана ---
-  // Проверяем созвездие (talker), фильтр и тип сообщения по первым байтам,
-  // чтобы не тратить полный проход CRC+запятые на чужие/неподдерживаемые кадры.
-  // В data_ пишем только после успешной валидации CRC (сохраняем "последние валидные данные").
+  // Ранняя отбраковка до O(n) сканирования в поиске CRC
+  // Проверяет созвездие (talker), фильтр и тип сообщения по первым байтам,
+  // чтобы не тратить полный проход CRC+запятые на чужие/неподдерживаемые кадры/пакеты/сентенции.
+  // В data_ пишу только после успешной проверки CRC (сохраняет "последние валидные данные").
   const Constellation cst = get_constellation(line[1], line[2]);
   if (cst == Constellation::Unknown) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_unknown_cst++;
@@ -547,12 +547,12 @@ LIGHT_NMEA_ALWAYS_INLINE constexpr uint32_t Parser::parse_uint32(std::string_vie
 
 LIGHT_NMEA_ALWAYS_INLINE constexpr bool Parser::parse_degrees_e7(std::string_view raw, char direction, int32_t &out) noexcept {
   constexpr int32_t SCALE_E7 = 10000000;  // Масштаб для координат (x10^7)
-  constexpr size_t MAX_FRAC_DIGITS = 7;   // Максимальное количество знаков дробной части
+  constexpr size_t MAX_FRAC_DIGITS = 7;   // Максимальное количество знаков в дробной части
 
-  // Единый проход слева направо (без find '.'). Минуты всегда ровно 2 цифры
-  // перед точкой, поэтому целая часть накапливается как degrees*100 + minutes,
-  // и граница вычисляется через %100 /100.
-  int32_t int_total = 0;   // все цифры до точки = degrees*100 + minutes
+  // Единый проход слева направо (без find '.'). Угловые минуты - всегда ровно 2 цифры перед точкой,
+  // поэтому целая часть накапливается как degrees*100 + minutes,
+  // и граница вычисляется операциями %100 и /100.
+  int32_t int_total = 0;   // Все цифры до точки = degrees*100 + minutes
   int32_t minutes_frac = 0;
   size_t int_digits = 0, frac_count = 0;
   bool seen_dot = false;
@@ -571,28 +571,27 @@ LIGHT_NMEA_ALWAYS_INLINE constexpr bool Parser::parse_degrees_e7(std::string_vie
     }
   }
 
-  // Координаты (Таблица 6): ddmm.mm / dddmm.mm, ведущие нули обязательны;
-  // десятичная точка и дробная часть ОПЦИОНАЛЬНЫ, если полная точность не
-  // требуется. Без точки нужно минимум 4 целых цифры (ddmm), чтобы отделить
-  // минуты (2 последние цифры) от градусов.
+  // Координаты (Таблица 6): ddmm.mm / dddmm.mm. Ведущие нули обязательны;
+  // десятичная точка и дробная часть не обязательны, если полная точность не требуется.
+  // Без точки нужно минимум 4 целых цифры (ddmm), чтобы отделить минуты (2 последние цифры) от градусов.
   if (int_digits < 2) return false;
   if (!seen_dot && int_digits < 4) return false;
 
   const int32_t minutes = int_total % 100;
   const int32_t degrees = int_total / 100;
 
-  // Дополняем нулями справа до MAX_FRAC_DIGITS знаков
+  // Дополняю нулями справа до MAX_FRAC_DIGITS количества знаков
   while (frac_count < MAX_FRAC_DIGITS) {
     minutes_frac *= 10;
     ++frac_count;
   }
 
-  // Конвертация минут в градусы: degrees + minutes/60
+  // Преобразование угловых минут в градусы: degrees + minutes/60
   const uint32_t minutes_total =
       static_cast<uint32_t>(minutes) * SCALE_E7 + static_cast<uint32_t>(minutes_frac);
   const int32_t minutes_in_degrees = static_cast<int32_t>(minutes_total / 60);
 
-  // результат в масштабе 1e7
+  // Результат в масштабе 1e7
   int32_t result = degrees * SCALE_E7 + minutes_in_degrees;
 
   // Южное/Западное полушарие - отрицательные координаты
@@ -608,8 +607,8 @@ template <int32_t FRAC_SCALE>
 LIGHT_NMEA_ALWAYS_INLINE constexpr int32_t Parser::parse_fixed_point(std::string_view raw) noexcept {
   if (raw.empty()) return 0;
   // Знак "-" (HEX 2D) может стоять первым символом поля (Таблица 6 NMEA-0183,
-  // примечание 2), например отрицательная высота над MSL в GGA. Цикл ниже не
-  // считает '-' цифрой, поэтому знак учитываем отдельно.
+  // примечание 2), например отрицательная высота над уровнем моря (MSL) в GGA. Цикл ниже не
+  // считает '-' цифрой, поэтому знак учитываю отдельно.
   const bool neg = (raw[0] == CHAR_MINUS);
   // Десятичная дробь с фиксированным масштабом FRAC_SCALE (x10/x100/x1000 = 1/2/3
   // знака после запятой; лишние знаки отбрасываются). Дробные цифры выравниваются
@@ -624,8 +623,8 @@ LIGHT_NMEA_ALWAYS_INLINE constexpr int32_t Parser::parse_fixed_point(std::string
       if (!after_dot) int_part = int_part * 10 + d;
       else if (frac_place > 0) {
         frac += d * frac_place;
-        // if constexpr: шаг масштаба сворачивается в константы, как в прежних
-        // трёх специализированных функциях (без деления в рантайме).
+        // if constexpr: шаг масштаба сворачивается в постоянные,
+        // как в прежних трёх специализированных функциях (без деления в рантайме).
         if constexpr (FRAC_SCALE == 10) {
           frac_place = 0;
         } else if constexpr (FRAC_SCALE == 100) {
@@ -669,15 +668,15 @@ inline bool Parser::parse_rmc(std::string_view line, size_t star_idx) noexcept {
     return false;
   }
 
-  // Парсинг fix_mode из Поля 12 (Mode Indicator, NMEA v3.01+)
-  // По умолчанию считаем фикс невалидным
+  // Парсинг fix_mode из Поля 12 (Mode Indicator, NMEA v3.01+).
+  // По умолчанию считаю фикс невалидным.
   data_.fix_mode = FixMode::NotValid;
-  // Mode Indicator существует только если запятых >= 12 (NMEA v3.01 и новее)
+  // Mode Indicator есть только если запятых >= 12 (NMEA v3.01 и новее)
   if (comma_count_ >= 12) {
     // Начало Поля 12: сразу после 11-й запятой
     const size_t mode_st = comma_pos_[11] + 1;
     
-    // Конец Поля 12: 
+    // Конец Поля 12:
     // Если есть Поле 13 (Navigational Status, comma_count_ >= 13), то конец - это 12-я запятая.
     // Иначе (NMEA v3.01), конец - это символ '*' (star_idx).
     const size_t mode_en = (comma_count_ >= 13) ? comma_pos_[12] : star_idx;
@@ -697,7 +696,7 @@ inline bool Parser::parse_rmc(std::string_view line, size_t star_idx) noexcept {
     data_.valid = true;
     data_.time_utc = parse_uint32(get_field(line, 1).substr(0, 6));
 
-    // Парсинг координат через helper (RMC: координаты начинаются с поля 3)
+    // Парсинг координат с помощью helper (координаты в RMC начинаются с поля 3)
     if (!parse_coordinates(line, 3)) {
       data_.reset_rmc();
       return false;
@@ -737,14 +736,14 @@ inline bool Parser::parse_gga(std::string_view line, size_t /*star_idx*/) noexce
   if (!fix_quality_sv.empty() && fix_quality_sv[0] != CHAR_0) LIGHT_NMEA_LIKELY {
     data_.valid = true;
 
-    // UTC позиции (поле 1): GGA-only потоки (без RMC/GLL) тоже получают
-    // время. На невалидной GGA время не стираем - как и остальные 2D-данные.
+    // UTC позиции (поле 1): GGA-only потоки (без RMC/GLL) тоже получают время.
+    // На невалидной GGA сентенции не стираю время - как и остальные 2D-данные.
     const std::string_view time_raw = get_field(line, 1);
     if (!time_raw.empty()) {
       data_.time_utc = parse_uint32(time_raw.substr(0, 6));
     }
 
-    // Парсинг координат через helper (GGA: координаты начинаются с поля 2)
+    // Парсинг координат с помощью helper (координаты в GGA начинаются с поля 2)
     if (!parse_coordinates(line, 2)) {
       data_.reset_rmc();
       return false;
@@ -767,8 +766,7 @@ inline bool Parser::parse_gga(std::string_view line, size_t /*star_idx*/) noexce
     }
 
     if (config_.trust_gga_fix) {
-      // parse_uint32 неотрицателен по построению, поэтому проверяем только
-      // верхнюю границу таблицы.
+      // parse_uint32 неотрицателен по строению, поэтому проверяем только верхнюю границу таблицы.
       const int fix_quality = static_cast<int>(parse_uint32(fix_quality_sv));
       if (fix_quality < static_cast<int>(detail::GGA_QUALITY_FIX_MODE.size())) {
         data_.fix_mode = detail::GGA_QUALITY_FIX_MODE[fix_quality];
@@ -792,8 +790,8 @@ inline bool Parser::parse_vtg(std::string_view line, size_t /*star_idx*/) noexce
   }
 
   // Точечный сброс VTG-состояния: незаполненные поля нового кадра не должны
-  // наследовать значения/флаги предыдущего. course_true и speed_kn_x1000
-  // намеренно не трогаем - они могут приходить из RMC.
+  // наследовать значения/флаги предыдущего.
+  // course_true и speed_kn_x1000 намеренно не трогаю - они могут приходить из RMC.
   data_.has_vtg_speed = false;
   data_.has_vtg_course = false;
   data_.course_mag = Heading();
@@ -843,7 +841,7 @@ inline bool Parser::parse_gll(std::string_view line, size_t /*star_idx*/) noexce
 
   data_.valid = true;
 
-  // Парсинг координат (GLL: координаты начинаются с поля 1)
+  // Парсинг координат (координаты в GLL начинаются с поля 1)
   if (!parse_coordinates(line, 1)) {
     data_.reset_rmc();
     return false;
