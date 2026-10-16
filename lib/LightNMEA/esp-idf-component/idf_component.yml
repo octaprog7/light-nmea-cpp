@@ -1,0 +1,4 @@
+version: "1.0.0"
+description: "Ultra-fast NMEA GPS parser for embedded systems (LightNMEA)"
+url: "https://github.com/octaprog7/light-nmea-cpp"
+license: "GPL-3.0"
