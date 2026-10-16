@@ -108,11 +108,27 @@ jobs:
     continue-on-error: true  # Zephyr SDK setup may change; do not block CI
     steps:
       - uses: actions/checkout@v4
-      - uses: zephyrproject-rtos/action-zephyr-build@v1
-        with:
-          app-dir: lib/LightNMEA/examples/zephyr
-          board: native_sim
-          toolchain: host
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git cmake ninja-build gperf ccache dfu-util device-tree-compiler wget \
+            python3-dev python3-pip python3-setuptools python3-tk python3-wheel xz-utils file make \
+            gcc gcc-multilib g++-multilib libsdl2-dev
+
+      - name: Install west
+        run: pip3 install west
+
+      - name: Init and update Zephyr workspace
+        working-directory: lib/LightNMEA/examples/zephyr
+        run: |
+          west init -l .
+          west update
+
+      - name: Build (native_sim)
+        working-directory: lib/LightNMEA/examples/zephyr
+        run: west build -b native_sim -d build/native_sim
 
   quality:
     name: Quality (fuzz + sanitizers)

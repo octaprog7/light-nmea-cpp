@@ -1,0 +1,17 @@
+# ============================================================================
+# LightNMEA Zephyr example - west manifest
+# ============================================================================
+# Defines the Zephyr version used to build the example:
+#   west init -l .
+#   west update
+#   west build -b native_sim -d build/native_sim
+# ============================================================================
+
+manifest:
+  projects:
+    - name: zephyr
+      remote: https://github.com/zephyrproject-rtos/zephyr
+      revision: v3.6.0
+      import: true
+  self:
+    path: .
