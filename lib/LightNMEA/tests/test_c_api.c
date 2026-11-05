@@ -40,7 +40,8 @@ int main(void) {
   assert(d.valid == 1);
   assert(d.has_lat_lon == 1);
   assert(d.lat_raw == 481173000);      /* 48.1173 * 1e7 */
-  assert(d.lon_raw == 115166670);      /* 11.516667 * 1e7 */
+  /* 11°31.000' = 11.5166666...° -> x1e7 = 115166666.67 -> 115166666 (trunc) */
+  assert(d.lon_raw == 115166666);
   assert(d.speed_kn_x1000 == 22400);   /* 22.4 * 1000 */
   assert(d.course_true_e2 == 8440);    /* 84.40 * 100 */
   assert(d.msg_type == LIGHTNMEA_MSG_RMC);
@@ -60,6 +61,9 @@ int main(void) {
   const char *line =
       "$GPRMC,123519,A,4807.038,N,01131.000,E,022.4,084.4,230394,003.1,W*6A";
   assert(lightnmea_parse_line_n(p, line, strlen(line)));
+  /* При NDEBUG (Release) assert() раскрывается в пустоту и line становится
+   * неиспользуемой — MSVC /W4 даёт C4189, с /WX это ошибка. */
+  (void)line;
 
   /*  Мусор не парсится  */
   assert(!lightnmea_parse_line(p, "garbage"));
