@@ -175,9 +175,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # ВАЖНО: clang обязателен — флаг -Wshorten-64-to-32 (аналог MSVC
+      # C4267) не существует в GCC: с -Werror GCC ругается на неизвестную
+      # опцию уже на этапе проверки компилятора (Configure).
       - name: Configure (strict narrowing)
         run: cmake -S lib/LightNMEA -B build -DCMAKE_BUILD_TYPE=Release
         env:
+          CC: clang
+          CXX: clang++
           CXXFLAGS: -Wall -Wextra -Werror -Wshorten-64-to-32
       - name: Build
         run: cmake --build build --config Release -j
