@@ -8,7 +8,7 @@
 # ============================================================================
 
 manifest:
-  # ВАЖНО: поле remote проекта — это ИМЯ remote из секции remotes,
+  # ВАЖНО: поле remote проекта - это ИМЯ remote из секции remotes,
   # а не URL. Прямой URL в remote даёт
   # "Malformed manifest file: project zephyr remote <url> is not defined".
   remotes:
@@ -19,5 +19,10 @@ manifest:
       remote: zephyrproject
       revision: v3.6.0
       import: true
+      # ВАЖНО: путь клона НЕ должен совпадать с каталогом приложения.
+      # west topdir = examples/, и path проекта (zephyr) по умолчанию - это
+      # examples/zephyr, где лежат CMakeLists.txt и west.yml приложения:
+      # git clone падает на конфликте файлов. Клонируем в deps/zephyr.
+      path: deps/zephyr
   self:
     path: .

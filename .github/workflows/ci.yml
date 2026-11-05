@@ -77,7 +77,11 @@ jobs:
 
   arduino:
     name: Arduino sketches
-    runs-on: ubuntu-latest
+    # ВАЖНО: не ubuntu-latest — на Ubuntu 26.04 (миграция ubuntu-latest)
+    # экшен compile-sketches падает: его pyproject.toml требует Python
+    # 3.12.4, для которой setup-python@v6 нет сборки x64/Ubuntu 26.04
+    # ("The version '3.12.4' ... was not found for Ubuntu 26.04").
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -122,7 +126,9 @@ jobs:
 
   zephyr:
     name: Zephyr (native_sim)
-    runs-on: ubuntu-latest
+    # ubuntu-24.04 (Python 3.12): Zephyr v3.6.0 может быть несовместим
+    # с Python 3.14 из Ubuntu 26.04 (миграция ubuntu-latest).
+    runs-on: ubuntu-24.04
     continue-on-error: true  # Zephyr SDK setup may change; do not block CI
     steps:
       - uses: actions/checkout@v4

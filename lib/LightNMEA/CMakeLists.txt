@@ -9,10 +9,20 @@ option(DISABLE_RTTI "Disable C++ RTTI" ON)
 if(DISABLE_EXCEPTIONS)
     if(MSVC)
         add_compile_options(/EHs-c-)
+        # C4530: инстанциации MSVC STL (std::ostream в тестах/примерах)
+        # ссылаются на обработку исключений, хотя код библиотеки исключений
+        # не использует и не бросает. Без /wd4530 сборка с /WX падает.
+        add_compile_options(/wd4530)
     else()
         add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>)
     endif()
     message(STATUS "C++ exceptions disabled")
+endif()
+
+if(MSVC)
+    # stream.hpp использует std::fopen — MSVC считает его "небезопасным"
+    # и даёт C4996; для POSIX/Arduino-код одинаков и в fopen_s не нуждается.
+    add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 endif()
 
 if(DISABLE_RTTI)

@@ -392,24 +392,25 @@ private:
     // Направления обязательны: только N/S для широты и E/W для долготы.
     // null-поле направления (5.2.2.3) означает "данные недоступны" и не
     // должно превращаться в валидный фикс.
-    const std::string_view lat_dir = get_field(line, start_idx + 1);
+    // static_cast<uint8_t>: MSVC /W4 даёт C4267 (size_t -> uint8_t).
+    const std::string_view lat_dir = get_field(line, static_cast<uint8_t>(start_idx + 1));
     if (lat_dir.size() != 1 ||
         (lat_dir[0] != CHAR_N && lat_dir[0] != CHAR_S)) {
       return false;
     }
-    const std::string_view lon_dir = get_field(line, start_idx + 3);
+    const std::string_view lon_dir = get_field(line, static_cast<uint8_t>(start_idx + 3));
     if (lon_dir.size() != 1 ||
         (lon_dir[0] != CHAR_E && lon_dir[0] != CHAR_W)) {
       return false;
     }
 
     int32_t lat_raw = 0;
-    if (!parse_degrees_e7(get_field(line, start_idx), lat_dir[0], lat_raw)) {
+    if (!parse_degrees_e7(get_field(line, static_cast<uint8_t>(start_idx)), lat_dir[0], lat_raw)) {
       return false;
     }
 
     int32_t lon_raw = 0;
-    if (!parse_degrees_e7(get_field(line, start_idx + 2), lon_dir[0], lon_raw)) {
+    if (!parse_degrees_e7(get_field(line, static_cast<uint8_t>(start_idx + 2)), lon_dir[0], lon_raw)) {
       return false;
     }
 
