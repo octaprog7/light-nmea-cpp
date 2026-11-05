@@ -28,7 +28,11 @@
 
 #include "../include/lightnmea_c.h"
 
-#include "light_nmea.hpp"
+// ВНИМАНИЕ: путь "../include/..." обязателен. Arduino CLI (в отличие от
+// PlatformIO/CMake) компилирует все .cpp из src/ библиотеки, добавляя в
+// include path только каталог src/ — без него quoted-include "light_nmea.hpp"
+// не находится и не собирается ни один скетч, использующий библиотеку.
+#include "../include/light_nmea.hpp"
 
 #include <new>
 #include <string_view>

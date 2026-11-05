@@ -25,7 +25,7 @@ namespace utils
 // ============================================================================
 
 // --- Coordinate Scales & Limits ---
-constexpr int32_t COORD_SCALE = 10'000'000; // 1e-7 degrees
+constexpr int32_t COORD_SCALE = 10000000; // 1e-7 degrees
 
 constexpr int32_t MIN_LAT = -90 * COORD_SCALE;
 constexpr int32_t MAX_LAT =  90 * COORD_SCALE;
@@ -43,18 +43,18 @@ constexpr int32_t HEADING_QUARTER = 90 * HEADING_SCALE;
 constexpr int32_t PERCENT_SCALE = 100;      // For lerp, ema, etc.
 
 // --- Distance Approximation ---
-constexpr int32_t METERS_PER_DEGREE_LAT = 111'320; // ~111.32 km at equator
+constexpr int32_t METERS_PER_DEGREE_LAT = 111320; // ~111.32 km at equator
 constexpr int32_t POLE_LATITUDE = 90 * COORD_SCALE;
 constexpr int32_t LON_SCALE_MAX = 1000;            // Max longitude scale factor
 
 // --- Speed Conversion Factors ---
 // Knots to cm/s (1 knot = 51.4444 cm/s)
-constexpr int32_t KNOTS_TO_CM_S_NUM = 514'444;
-constexpr int32_t KNOTS_TO_CM_S_DEN = 10'000;
+constexpr int32_t KNOTS_TO_CM_S_NUM = 514444;
+constexpr int32_t KNOTS_TO_CM_S_DEN = 10000;
 
 // km/h to cm/s (1 km/h = 27.7778 cm/s)
-constexpr int32_t KMH_TO_CM_S_NUM = 277'778;
-constexpr int32_t KMH_TO_CM_S_DEN = 10'000;
+constexpr int32_t KMH_TO_CM_S_NUM = 277778;
+constexpr int32_t KMH_TO_CM_S_DEN = 10000;
 
 // m/s to cm/s
 constexpr int32_t MS_TO_CM_S = 100;
@@ -64,8 +64,8 @@ constexpr int32_t CM_S_TO_KMH_NUM = 36;
 constexpr int32_t CM_S_TO_KMH_DEN = 10;
 
 // cm/s to knots (1 cm/s = 1/51.4444 knots)
-constexpr int32_t CM_S_TO_KNOTS_NUM = 1'000'000;
-constexpr int32_t CM_S_TO_KNOTS_DEN = 514'444;
+constexpr int32_t CM_S_TO_KNOTS_NUM = 1000000;
+constexpr int32_t CM_S_TO_KNOTS_DEN = 514444;
 
 // ============================================================================
 // 2. VALIDATION

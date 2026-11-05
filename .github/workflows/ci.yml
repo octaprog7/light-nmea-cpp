@@ -47,8 +47,11 @@ jobs:
       - name: Build
         run: cmake --build build -j
 
+      # -C Release обязателен для MSVC (multi-config генератор Visual Studio):
+      # без него ctest даёт "Test not available without configuration" и
+      # все тесты получают статус "Not Run".
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure -C Release
 
   platformio:
     name: PlatformIO compile
@@ -105,6 +108,9 @@ jobs:
             - ci-sketches/BasicGPS
             - ci-sketches/GPSToJSON
             - ci-sketches/GPSLogger
+          # нужен verbose, чтобы в лог падали ошибки компиляции
+          # (без него видно только "Compilation failed").
+          verbose: true
 
   freertos:
     name: FreeRTOS (host, POSIX port)
@@ -150,9 +156,11 @@ jobs:
           west init -l .
           west update
 
+      # ZEPHYR_TOOLCHAIN_VARIANT=host: в CI нет Zephyr SDK, native_sim
+      # (32-bit x86) собирается системным gcc (gcc-multilib установлен выше).
       - name: Build (native_sim)
         working-directory: lib/LightNMEA/examples/zephyr
-        run: west build -b native_sim -d build/native_sim
+        run: west build -b native_sim -d build/native_sim -- -DZEPHYR_TOOLCHAIN_VARIANT=host
 
   quality:
     name: Quality (fuzz + sanitizers)

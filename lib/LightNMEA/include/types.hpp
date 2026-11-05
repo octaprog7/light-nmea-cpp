@@ -14,7 +14,7 @@ namespace light_nmea
 // Базовые константы масштаба
 namespace scale
 {
-    constexpr int32_t COORD  = 10'000'000; // 1e-7 degrees (~1.1 cm precision)
+    constexpr int32_t COORD  = 10000000; // 1e-7 degrees (~1.1 cm precision)
     constexpr int32_t HEADING = 100;       // 1e-2 degrees (масштаб курса Heading)
     constexpr int32_t SPEED   = 1000;      // Универсальный масштаб x1000 (узлы x1000, км/ч x1000)
 }
