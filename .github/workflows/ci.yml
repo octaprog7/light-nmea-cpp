@@ -44,8 +44,11 @@ jobs:
         env:
           CXXFLAGS: ${{ matrix.cxxflags }}
 
+      # --config Release обязателен для MSVC (multi-config): без него
+      # MSBuild собирает Debug, exe попадает в build/Debug/, и ctest -C
+      # Release не находит исполняемые файлы ("Could not find executable").
       - name: Build
-        run: cmake --build build -j
+        run: cmake --build build --config Release -j
 
       # -C Release обязателен для MSVC (multi-config генератор Visual Studio):
       # без него ctest даёт "Test not available without configuration" и
@@ -148,7 +151,9 @@ jobs:
             gcc gcc-multilib g++-multilib libsdl2-dev
 
       - name: Install west
-        run: pip3 install west
+        # pyelftools: нужен скриптам Zephyr (gen_kobject_list.py и др.);
+        # без него сборка native_sim падает с ModuleNotFoundError.
+        run: pip3 install west pyelftools
 
       - name: Init and update Zephyr workspace
         working-directory: lib/LightNMEA/examples/zephyr
