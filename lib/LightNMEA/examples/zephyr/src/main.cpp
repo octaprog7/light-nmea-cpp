@@ -51,6 +51,7 @@ public:
 // Новый API uart_pipe: драйвер пишет принятые байты в буфер
 // и вызывает callback(buf, &off); callback возвращает буфер для следующего
 // приёма (обычно тот же) и сбрасывает off в 0.
+#ifdef CONFIG_UART_PIPE
 static uint8_t pipe_buffer[64];
 
 static uint8_t *pipe_handler(uint8_t *buf, size_t *off) {
@@ -64,6 +65,7 @@ static uint8_t *pipe_handler(uint8_t *buf, size_t *off) {
   *off = 0;
   return buf;
 }
+#endif // CONFIG_UART_PIPE
 
 // ============================================================================
 // Время в миллисекундах (для анти-спам фильтра NMEAStreamReader)
@@ -78,8 +80,15 @@ int main(void) {
   NMEAStreamReader reader;
   RingStream stream;
 
+#ifdef CONFIG_UART_PIPE
   uart_pipe_register(pipe_buffer, sizeof(pipe_buffer), pipe_handler);
+#endif
   printk("LightNMEA Zephyr example started\n");
+#ifdef CONFIG_UART_PIPE
+  printk("UART pipe active: feed NMEA lines to the selected UART\n");
+#else
+  printk("UART pipe disabled (CONFIG_UART_PIPE=n): no input source\n");
+#endif
 
   while (1) {
     const size_t processed = reader.read_available(parser, stream, get_time_ms);

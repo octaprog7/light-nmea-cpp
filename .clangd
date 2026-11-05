@@ -1,0 +1,21 @@
+# clangd: корень проекта — репозиторий light-nmea-cpp (не lib/LightNMEA!).
+#
+# Compilation database берётся из build-check/ (сборка библиотеки:
+#   cmake -S lib/LightNMEA -B build-check -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+#   cmake --build build-check -j
+# и после изменения заголовков/исходников перегенерировать).
+#
+# Фолбэк-флаги для файлов корня репо (src/, native/), которых нет в базе.
+CompileFlags:
+  CompilationDatabase: build-check
+  Add:
+    - -std=c++20
+    - -Ilib/LightNMEA/include
+
+Diagnostics:
+  UnusedIncludes: None
+  MissingIncludes: None
+
+# Не индексировать мусор сборок (ускоряет индексацию и убирает ложные корни).
+Index:
+  Background: Build

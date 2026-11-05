@@ -167,6 +167,23 @@ jobs:
         working-directory: lib/LightNMEA/examples/zephyr
         run: west build -b native_sim -d build/native_sim -- -DZEPHYR_TOOLCHAIN_VARIANT=host
 
+  # MSVC-строгость заголовков: clang-флаг -Wshorten-64-to-32 — аналог
+  # MSVC C4267 (неявное сужение size_t -> uint8_t/int32_t), который GCC
+  # не ловит. Ловит проблемы Windows-джобы ДО её запуска (и быстрее).
+  portability:
+    name: Strict headers (clang -Wshorten-64-to-32)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (strict narrowing)
+        run: cmake -S lib/LightNMEA -B build -DCMAKE_BUILD_TYPE=Release
+        env:
+          CXXFLAGS: -Wall -Wextra -Werror -Wshorten-64-to-32
+      - name: Build
+        run: cmake --build build --config Release -j
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -C Release
+
   quality:
     name: Quality (fuzz + sanitizers)
     runs-on: ubuntu-latest
