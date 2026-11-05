@@ -34,8 +34,11 @@
 #include <string_view>
 
 // Определение типа: хранит C++-парсер.
+// ВНИМАНИЕ: Parser имеет explicit-конструктор, поэтому член инициализируется
+// списком impl{} (direct-list-initialization) — иначе сборка ломается на
+// AppleClang ("chosen constructor is explicit in copy-initialization").
 struct lightnmea_parser {
-  light_nmea::Parser impl;
+  light_nmea::Parser impl{};
 };
 
 extern "C" {

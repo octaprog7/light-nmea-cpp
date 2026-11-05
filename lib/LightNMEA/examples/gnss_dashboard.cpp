@@ -696,7 +696,13 @@ void ensure_term() noexcept {
 int main(int argc, char **argv) {
   // stderr -> mcu_debug.log (не мешает TUI); без буферизации, чтобы журнал
   // обновлялся немедленно (при завершении процесса буфер не теряется)
-  freopen("mcu_debug.log", "a", stderr);
+  // Возвращаемое значение проверяем явно: glibc помечает freopen
+  // атрибутом warn_unused_result, из-за чего сборка с -Werror падает.
+  // Если переоткрытие не удалось (например, read-only ФС) — продолжаю
+  // с исходным stderr.
+  if (freopen("mcu_debug.log", "a", stderr) == nullptr) {
+    std::fprintf(stderr, "warning: freopen(mcu_debug.log) failed, stderr left as is\n");
+  }
   setvbuf(stderr, nullptr, _IONBF, 0);
 
   std::string port;

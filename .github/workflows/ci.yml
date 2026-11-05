@@ -27,16 +27,22 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            cxx_flags: -DCMAKE_CXX_FLAGS=-Wall\ -Wextra\ -Werror
+            cxxflags: -Wall -Wextra -Werror
           - os: macos-latest
-            cxx_flags: -DCMAKE_CXX_FLAGS=-Wall\ -Wextra\ -Werror
+            cxxflags: -Wall -Wextra -Werror
           - os: windows-latest
-            cxx_flags: -DCMAKE_CXX_FLAGS=/W4\ /WX
+            cxxflags: /W4 /WX
     steps:
       - uses: actions/checkout@v4
 
+      # ВАЖНО: флаги передаются через переменную окружения CXXFLAGS
+      # (CMake инициализирует CMAKE_CXX_FLAGS из неё при первой конфигурации).
+      # Прямая подстановка в командную строку с экранированием "\ " ломает
+      # сборку на Windows (PowerShell): MSVC получает "/W4\" -> D8021.
       - name: Configure (warnings as errors)
-        run: cmake -S lib/LightNMEA -B build -DCMAKE_BUILD_TYPE=Release ${{ matrix.cxx_flags }}
+        run: cmake -S lib/LightNMEA -B build -DCMAKE_BUILD_TYPE=Release
+        env:
+          CXXFLAGS: ${{ matrix.cxxflags }}
 
       - name: Build
         run: cmake --build build -j
@@ -74,15 +80,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # ВАЖНО: arduino-cli требует структуру <ИмяСкетча>/<ИмяСкетча>.ino в
+      # корне каталога скетча. Примеры используют PlatformIO-layout
+      # (<ИмяСкетча>/src/<ИмяСкетча>.ino), поэтому для CI собираем
+      # совместимую структуру во временном каталоге ci-sketches/.
+      - name: Prepare sketches (Arduino CLI expects <Sketch>/<Sketch>.ino at sketch root)
+        run: |
+          for sketch in BasicGPS GPSToJSON GPSLogger; do
+            mkdir -p "ci-sketches/$sketch"
+            cp "lib/LightNMEA/examples/$sketch/src/$sketch.ino" "ci-sketches/$sketch/"
+          done
+
       - uses: arduino/compile-sketches@v1
         with:
           fqbn: esp32:esp32:esp32
           libraries: |
             - source-path: lib/LightNMEA
           sketch-paths: |
-            - lib/LightNMEA/examples/BasicGPS
-            - lib/LightNMEA/examples/GPSToJSON
-            - lib/LightNMEA/examples/GPSLogger
+            - ci-sketches/BasicGPS
+            - ci-sketches/GPSToJSON
+            - ci-sketches/GPSLogger
 
   freertos:
     name: FreeRTOS (host, POSIX port)
