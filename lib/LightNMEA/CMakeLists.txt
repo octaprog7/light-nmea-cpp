@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(light-nmea-cpp VERSION 1.0.0 LANGUAGES C CXX)
+project(light-nmea-cpp VERSION 1.1.0 LANGUAGES C CXX)
 
 # Отключение исключений и RTTI (опционально). Флаги - только для C++,
 # чтобы не сыпать предупреждениями при компиляции C-файлов (C API).

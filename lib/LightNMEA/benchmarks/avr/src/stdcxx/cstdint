@@ -1,0 +1,7 @@
+// cstdint - freestanding shim: int/uintN_t из avr-libc <stdint.h>
+#ifndef LIGHTNMEA_AVR_STDCXX_CSTDINT_H
+#define LIGHTNMEA_AVR_STDCXX_CSTDINT_H
+
+#include <stdint.h>
+
+#endif // LIGHTNMEA_AVR_STDCXX_CSTDINT_H

@@ -1,0 +1,11 @@
+menu "LightNMEA example"
+
+    config LIGHTNMEA_UART_NAME
+        string "UART device name for the GPS receiver"
+        default "uart1"
+
+    config LIGHTNMEA_SIM_FEED
+        bool "Feed built-in sample NMEA sentences instead of UART (for QEMU/simulators)"
+        default n
+
+endmenu

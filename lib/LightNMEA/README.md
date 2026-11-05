@@ -157,8 +157,10 @@ Key recommendations:
 * gnss_dashboard (Linux, TUI): curses-based GNSS dashboard
 * freertos (host, POSIX port): producer/consumer tasks + FreeRTOS queue
 * zephyr (Zephyr RTOS): `uart_pipe` -> ring buffer -> `NMEAStreamReader`
+* rtthread (RT-Thread RTOS): `rt_device` serial + `rx_indicate` semaphore -> ring buffer -> `NMEAStreamReader`
+* pico (Raspberry Pi Pico / RP2040): GNSS on UART0 (GP0/GP1) -> `NMEAStreamReader` -> USB CDC
 
-## RTOS support (FreeRTOS / Zephyr)
+## RTOS support (FreeRTOS / Zephyr / RT-Thread)
 
 The library core (`light_nmea.hpp`, `nmea_stream_reader.hpp`,
 `nmea_formatter.hpp`) is **pure C++17** and does not depend on Arduino or
@@ -188,6 +190,28 @@ Bundled examples:
   west build -b nrf52840dk/nrf52840 -d build/nrf52840dk   # real board
   west build -b native_sim -d build/native_sim            # host (needs gcc-multilib)
   ```
+
+* [`examples/rtthread/`](examples/rtthread/) — RT-Thread application: reads
+  NMEA from a serial device (`rt_device`, interrupt RX + `rx_indicate`
+  semaphore), accumulates bytes in a ring buffer and parses them in the main
+  thread. Includes a built-in simulation feed (`LIGHTNMEA_SIM_FEED`) for
+  boards without a GPS attached (e.g. `qemu-vexpress-a9`).
+  ```console
+  # add examples/rtthread/ to the BSP tree, then in the BSP directory:
+  menuconfig    # LightNMEA example -> LIGHTNMEA_UART_NAME / LIGHTNMEA_SIM_FEED
+  scons
+  ```
+  See [`examples/rtthread/README.md`](examples/rtthread/README.md) for details.
+
+* [`examples/pico/`](examples/pico/) — Raspberry Pi Pico (RP2040) application:
+  reads NMEA from a GNSS module (G10F-F30) wired to UART0 (GP0/GP1), parses it
+  with `NMEAStreamReader` + `Parser` and prints positions over USB CDC.
+  ```console
+  cd lib/LightNMEA/examples/pico
+  pio run -e pico -t upload      # picotool reboots the board automatically
+  pio device monitor             # 115200, USB CDC
+  ```
+  See [`examples/pico/README.md`](examples/pico/README.md) for details.
 
 ## GNSS dashboard (TUI, Linux)
 

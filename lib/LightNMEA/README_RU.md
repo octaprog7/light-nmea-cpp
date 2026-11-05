@@ -153,8 +153,10 @@ int64_t d2 = a.distance_sq_to(b); // квадрат евклидова расс�
 * gnss_dashboard (Linux, TUI): Информационная панель GNSS на основе curses
 * freertos (хост, POSIX-порт): задачи producer/consumer + очередь FreeRTOS
 * zephyr (Zephyr RTOS): `uart_pipe` -> кольцевой буфер -> `NMEAStreamReader`
+* rtthread (RT-Thread RTOS): `rt_device` serial + семафор `rx_indicate` -> кольцевой буфер -> `NMEAStreamReader`
+* pico (Raspberry Pi Pico / RP2040): GNSS на UART0 (GP0/GP1) -> `NMEAStreamReader` -> USB CDC
 
-## Поддержка ОСРВ (FreeRTOS / Zephyr)
+## Поддержка ОСРВ (FreeRTOS / Zephyr / RT-Thread)
 
 Ядро библиотеки (`light_nmea.hpp`, `nmea_stream_reader.hpp`,
 `nmea_formatter.hpp`) — **чистый C++17** и не зависит от Arduino или POSIX,
@@ -182,6 +184,28 @@ int64_t d2 = a.distance_sq_to(b); // квадрат евклидова расс�
   west build -b nrf52840dk/nrf52840 -d build/nrf52840dk   # реальная плата
   west build -b native_sim -d build/native_sim            # хост (нужен gcc-multilib)
   ```
+
+* [`examples/rtthread/`](examples/rtthread/) — приложение RT-Thread: читает
+  данные NMEA из serial-девайса (`rt_device`, прерывание RX + семафор
+  `rx_indicate`), накапливает байты в кольцевом буфере и парсит их в главном
+  потоке. Включает встроенный режим симуляции (`LIGHTNMEA_SIM_FEED`) для
+  плат без подключённого GPS (например, `qemu-vexpress-a9`).
+  ```console
+  # добавьте examples/rtthread/ в дерево BSP, затем в каталоге BSP:
+  menuconfig    # LightNMEA example -> LIGHTNMEA_UART_NAME / LIGHTNMEA_SIM_FEED
+  scons
+  ```
+  Подробнее см. [`examples/rtthread/README_RU.md`](examples/rtthread/README_RU.md).
+
+* [`examples/pico/`](examples/pico/) — приложение для Raspberry Pi Pico
+  (RP2040): читает NMEA от GNSS-модуля (G10F-F30) на UART0 (GP0/GP1), парсит
+  вызовами `NMEAStreamReader` + `Parser` и печатает позиции в USB CDC.
+  ```console
+  cd lib/LightNMEA/examples/pico
+  pio run -e pico -t upload      # picotool сам уводит плату в BOOTSEL
+  pio device monitor             # 115200, USB CDC
+  ```
+  Подробнее см. [`examples/pico/README_RU.md`](examples/pico/README_RU.md).
 
 ## Информационная панель GNSS (TUI, Linux)
 

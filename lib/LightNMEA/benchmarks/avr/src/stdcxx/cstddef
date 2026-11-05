@@ -1,0 +1,13 @@
+// cstddef - freestanding shim: size_t/ptrdiff_t/nullptr_t из avr-libc <stddef.h>
+#ifndef LIGHTNMEA_AVR_STDCXX_CSTDDEF_H
+#define LIGHTNMEA_AVR_STDCXX_CSTDDEF_H
+
+#include <stddef.h>
+
+namespace std {
+using ::size_t;
+using ::ptrdiff_t;
+using nullptr_t = decltype(nullptr);
+} // namespace std
+
+#endif // LIGHTNMEA_AVR_STDCXX_CSTDDEF_H

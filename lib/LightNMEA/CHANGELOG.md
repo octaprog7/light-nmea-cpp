@@ -5,7 +5,7 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 проект придерживается [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.1.0] - 2026-11-05
 
 ### Added
 
@@ -29,6 +29,24 @@
   [`CHANGELOG.md`](CHANGELOG.md), шаблоны issues.
 - **clang-format / clang-tidy** конфигурация (`.clang-format`, `.clang-tidy`).
 - CMakeLists: поддержка MSVC (флаги исключений/RTTI/оптимизаций).
+- **Пример RT-Thread** ([`examples/rtthread/`](examples/rtthread/)): чтение NMEA
+  из `rt_device` (прерывание RX + семафор `rx_indicate`), кольцевой буфер,
+  `NMEAStreamReader` + `Parser`; режим симуляции для QEMU (`SConscript`, `Kconfig`).
+- **Пример Raspberry Pi Pico** ([`examples/pico/`](examples/pico/)): GNSS-модуль
+  G10F-F30 на UART0 (GP0/GP1, 38400 бод), вывод в USB CDC, демо-режим со
+  встроенным NMEA-треком для проверки без спутников (PlatformIO, env
+  `pico` / `pico_demo`). Проверен на живом приёме (fix, 11 спутников).
+- **AVR-бенчмарки**: ATmega32 через AVRISP mkII ([`benchmarks/avr/`](benchmarks/avr/),
+  включая [`brick-recovery.md`](benchmarks/avr/brick-recovery.md)) и переписанная
+  версия для Arduino UNO R3 / ATmega328P ([`benchmarks/uno/`](benchmarks/uno/)) —
+  прошивка через Optiboot без записи фьюзов. Результаты на ATmega328P @ 16 МГц:
+  LightNMEA 2441 pkt/s (в ~3 раза быстрее minmea, в ~2.7 раза быстрее TinyGPSPlus).
+
+### Changed
+
+- Проверка утечек памяти valgrind memcheck (модульные тесты + фаззинг,
+  50 000 мутаций) — ошибок и утечек нет; строка «пропущено (не установлен)»
+  в таблице качества удалена.
 
 ## [1.0.0] - 2026
 

@@ -1,0 +1,30 @@
+# RT-Thread SConscript для примера LightNMEA.
+#
+# Подключение: скопируйте каталог examples/rtthread в дерево BSP RT-Thread
+# (например, как "applications" или подкаталог корня BSP) и добавьте source
+# в BSP-файл Kconfig, либо собирайте напрямую через SCons.
+#
+# Требования к BSP (см. README.md):
+#   - C++17 (RT_USING_CPLUSPLUS / CONFIG_RT_USING_CPLUSPLUS, gnu++17 в CXXFLAGS);
+#   - драйвер serial (RT_USING_SERIAL) для режима UART.
+
+from building import *
+
+cwd = GetCurrentDir()
+src = Glob('src/*.cpp')
+
+CPPPATH = [
+    cwd + '/src',
+    cwd + '/../../include',   # заголовки LightNMEA (header-only)
+]
+
+CPPDEFINES = []
+if GetDepend('LIGHTNMEA_SIM_FEED'):
+    CPPDEFINES += ['LIGHTNMEA_SIM_FEED']
+
+group = DefineGroup('LightNMEA_example', src,
+                    depend=[''],   # C++-пример: зависимость от C++-стека задаётся в BSP
+                    CPPPATH=CPPPATH,
+                    CPPDEFINES=CPPDEFINES)
+
+Return('group')

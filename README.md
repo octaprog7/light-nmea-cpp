@@ -13,7 +13,7 @@ The library targets **32-bit microcontrollers** (Cortex-M, ESP32, STM32, RP2040)
 
 ## Motivation
 
-After releasing **[light-nmea-micropython](https://github.com/octaprog7/light-nmea-micropython)**, we found that the C++ niche remained practically open. Most NMEA parsers are written for Python or target the old Arduino-era C, leaving modern C++ developers without a truly fast, zero-allocation option.
+After releasing **[light-nmea-micropython](https://github.com/octaprog7/light-nmea-micropython)**, I found that the C++ niche remained practically open. Most NMEA parsers are written for Python or target the old Arduino-era C, leaving modern C++ developers without a truly fast, zero-allocation option.
 
 The goal was set for **32-bit microcontrollers**: to achieve performance as close as possible to the practically achievable limit **without using the FPU** — pure integer arithmetic from sentence tokenization to coordinate math and formatting. And **no heap allocations on the hot path**: during parsing the library never touches the heap, so its memory footprint is strictly bounded at compile time and fits into any modern MCU.
 
@@ -473,7 +473,7 @@ Current status (GCC 14.2, x86-64):
 | Fuzzing — deterministic (every byte of every packet: inversion/truncation/erasure/insertion) + 1,000,000 random mutations, recovery after garbage | [OK] OK                 |
 | ASan + UBSan + leak check (unit tests + 200,000 fuzz mutations)                                                                                   | [OK] clean              |
 | No-exceptions / no-RTTI build (`-fno-exceptions -fno-rtti`)                                                                                       | [OK] OK                 |
-| valgrind memcheck                                                                                                                                 | skipped (not installed) |
+| valgrind memcheck (unit tests + fuzz, 50,000 mutations, `--leak-check=full`)                                                                       | [OK] clean — no errors, no leaks |
 
 The fuzz test [`tests/fuzz_parser.cpp`](lib/LightNMEA/tests/fuzz_parser.cpp) verifies coordinate invariants on every accepted packet and ensures the parser recovers from a garbage stream.
 
