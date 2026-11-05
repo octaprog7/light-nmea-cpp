@@ -1,6 +1,6 @@
 {
   "name": "light-nmea-cpp",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Ultra-fast NMEA GPS parser for embedded systems",
   "keywords": ["gps", "nmea", "gnss", "parser", "embedded", "arduino", "esp32", "rp2040", "stm32"],
   "homepage": "https://github.com/octaprog7/light-nmea-cpp",

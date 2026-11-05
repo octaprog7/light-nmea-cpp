@@ -5,6 +5,26 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 проект придерживается [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-11-05
+
+### Fixed
+
+- **Windows/MSVC**: явные `static_cast<uint8_t>` в `parse_coordinates()`
+  (C4267 при `/W4 /WX`); `/wd4530` (инстанциации STL при `/EHs-c-`);
+  `_CRT_SECURE_NO_WARNINGS` (fopen → C4996);
+  `test_c_api.c`: `(void)line` при NDEBUG и верное ожидание
+  `lon_raw = 115166666` (ошибка была скрыта NDEBUG в Release).
+- **macOS/AppleClang**: `lightnmea_c.cpp` — direct-list-initialization
+  члена с explicit-конструктором (`impl{}`).
+- **Ubuntu/glibc**: проверка возвращаемого значения `freopen()` в
+  `gnss_dashboard.cpp` (`warn_unused_result` + `-Werror`).
+- **Arduino IDE / ESP32**: убраны цифровые разделители (C++14) из
+  `types.hpp`/`utils.hpp` — совместимость с `gnu++11` (default ESP32
+  Arduino core); `src/lightnmea_c.cpp` включает заголовки через
+  `../include/...` (include path arduino-cli — только `src/`).
+- **PlatformIO**: `-Dtimegm=mktime` в `[common]` всех прошивок (newlib
+  ESP32/ESP8266 не имеет `timegm()`).
+
 ## [1.1.0] - 2026-11-05
 
 ### Added
