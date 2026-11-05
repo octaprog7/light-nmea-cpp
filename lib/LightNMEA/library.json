@@ -2,7 +2,8 @@
   "name": "light-nmea-cpp",
   "version": "1.1.0",
   "description": "Ultra-fast NMEA GPS parser for embedded systems",
-  "keywords": ["gps", "nmea", "parser", "embedded", "arduino", "esp32", "stm32"],
+  "keywords": ["gps", "nmea", "gnss", "parser", "embedded", "arduino", "esp32", "rp2040", "stm32"],
+  "homepage": "https://github.com/octaprog7/light-nmea-cpp",
   "repository": {
     "type": "git",
     "url": "https://github.com/octaprog7/light-nmea-cpp.git"
@@ -16,7 +17,32 @@
   "license": "GPL-3.0",
   "frameworks": ["arduino", "espidf", "stm32cube"],
   "platforms": ["*"],
-  "headers": "lightnmea.h",
+  "headers": ["light_nmea.hpp", "lightnmea.h", "lightnmea_c.h"],
+  "export": {
+    "exclude": [
+      "tests",
+      "scripts",
+      "benchmarks",
+      "esp-idf-component",
+      "examples/freertos",
+      "examples/zephyr",
+      "examples/rtthread",
+      "examples/pico",
+      "examples/gnss_dashboard.cpp",
+      "examples/dash_utils.hpp",
+      "examples/build_gnss_dashboard.sh",
+      "Doxyfile",
+      ".clang-format",
+      ".clang-tidy",
+      ".clangd",
+      "out",
+      "build*",
+      "compile_commands.json",
+      "*.log",
+      "*.csv",
+      "*.tar.gz"
+    ]
+  },
   "build": {
     "flags": ["-std=c++17"]
   }

@@ -1,0 +1,23 @@
+# Файлы, исключаемые из пакета PlatformIO (pio pkg publish / pio pkg pack).
+# Синтаксис подобен .gitignore.
+
+# Артефакты сборки
+build/
+build-*/
+out/
+.pio/
+compile_commands.json
+
+# Логи и данные
+*.log
+*.csv
+*.tar.gz
+
+# Тяжёлые инструменты разработки (в пакет не нужны)
+tests/
+benchmarks/
+scripts/
+Doxyfile
+.clang-format
+.clang-tidy
+.clangd/
