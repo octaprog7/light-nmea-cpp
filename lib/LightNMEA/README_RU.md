@@ -33,6 +33,12 @@
 ```ini
 lib_deps = https://github.com/octaprog7/light-nmea-cpp.git
 ```
+Библиотека официально опубликована в [реестре PlatformIO](https://registry.platformio.org/libraries/octaprog7/light-nmea-cpp). 
+Добавьте следующую строку в ваш файл `platformio.ini`:
+
+```ini
+lib_deps = octaprog7/light-nmea-cpp
+```
 
 Или соберите встроенные примеры прямо из репозитория
 (у каждого примера свой `platformio.ini`):

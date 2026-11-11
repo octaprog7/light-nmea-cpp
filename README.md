@@ -111,8 +111,12 @@ Add to your `platformio.ini`:
 lib_deps = https://github.com/octaprog7/light-nmea-cpp.git
 ```
 
-> The library is not yet published to the PlatformIO Registry, so the
-> git URL is used. Once published, you can use `octaprog7/light-nmea-cpp`.
+The library is officially published in the [PlatformIO Registry](https://registry.platformio.org/libraries/octaprog7/light-nmea-cpp). 
+Add the following to your `platformio.ini`:
+
+```ini
+lib_deps = octaprog7/light-nmea-cpp
+``` 
 
 ### CMake
 
