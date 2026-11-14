@@ -12,6 +12,10 @@
 #include <light_nmea.hpp>
 #include <nmea_formatter.hpp>  // detail::CST_NAMES / FIX_NAMES / get_name
 
+#if defined(LIGHTNMEA_USE_MFSHIELD)
+    #include <mfshield_display.hpp>
+#endif
+
 // ============================================================================
 // Platform Detection and Configuration
 // ============================================================================
@@ -62,11 +66,13 @@
         #define GPS_RX_PIN 19
         #define GPS_TX_PIN 18
     #else
-        // Uno/Nano: use SoftwareSerial
+        // Uno/Nano: use SoftwareSerial.
+        // D4 занят защёлкой (LATCH) индикатора Multi-Function Shield,
+        // поэтому GPS переведён на свободные D5 (RX) / D6 (TX).
         #define PLATFORM_NAME "AVR (Uno/Nano)"
         #define USE_SOFTWARE_SERIAL
-        #define GPS_RX_PIN 4
-        #define GPS_TX_PIN 5
+        #define GPS_RX_PIN 5
+        #define GPS_TX_PIN 6
     #endif
     #define LED_PIN LED_BUILTIN
     #define HAS_HARDWARE_SERIAL (defined(__AVR_ATmega2560__))
@@ -90,7 +96,9 @@
 // ============================================================================
 constexpr uint32_t GPS_BAUD_RATE = 38400;  
 constexpr uint32_t USB_BAUD_RATE = 115200;
-constexpr size_t BUFFER_SIZE = 512;        
+// NMEA 0183 ограничивает предложение 82 символами (включая CR/LF);
+// 128 байт - с запасом. На Arduino UNO (2 КБ SRAM) это экономит 384 байта.
+constexpr size_t BUFFER_SIZE = 128;
 
 // ============================================================================
 // Global Variables
@@ -101,6 +109,31 @@ uint16_t bufferIndex = 0;
 static uint32_t last_printed_time = 0;
 static uint32_t last_led_toggle = 0;
 static bool led_state = false;
+
+// Диагностика без фикса (включается -DLIGHTNMEA_STATUS_NOFIX=1):
+// раз в секунду печатаем состояние парсера, чтобы видеть, что NMEA
+// разбирается, даже когда координат ещё нет.
+#if defined(LIGHTNMEA_STATUS_NOFIX)
+    static uint32_t last_status_ms = 0;
+    static uint32_t parsed_lines = 0;
+    static uint32_t cnt_rmc = 0;
+    static uint32_t cnt_gga = 0;
+    static uint32_t cnt_vtg = 0;
+    static uint32_t cnt_gll = 0;
+#endif
+
+#if defined(LIGHTNMEA_USE_MFSHIELD)
+    // Индикатор Multi-Function Shield (2 x 74HC595): D4=LATCH, D7=CLOCK, D8=DATA.
+    MFShieldDisplay shieldDisplay;
+
+    // Пока не пришло время от GNSS - прокручиваем поддерживаемые символы.
+    static const char* const DISPLAY_DEMO[] = {
+        "0123", "4567", "89AC", "EFHL", "PU-."
+    };
+    static bool display_has_time = false;
+    static uint32_t last_demo_ms = 0;
+    static uint8_t demo_index = 0;
+#endif
 
 #ifdef USE_SOFTWARE_SERIAL
     #include <SoftwareSerial.h>
@@ -116,6 +149,40 @@ void toggle_led() {
     digitalWrite(LED_PIN, led_state ? HIGH : LOW);
 }
 
+/// Печать целого двумя разрядами с ведущим нулём (без printf).
+/// Шаблон, чтобы работать и с Arduino Print, и с родным SerialOut.
+template <typename Out>
+static void print2(Out& out, int value) {
+    out.print(static_cast<char>('0' + (value / 10) % 10));
+    out.print(static_cast<char>('0' + value % 10));
+}
+
+/// Печать числа с фиксированной точностью без printf.
+/// Нужно для AVR: Serial.printf отсутствует, а snprintf("%f") требует
+/// отдельной связки printf-floating point.
+template <typename Out>
+static void printFixed(Out& out, double value, uint8_t decimals) {
+    bool negative = value < 0.0;
+    if (negative) value = -value;
+
+    uint32_t scale = 1;
+    for (uint8_t i = 0; i < decimals; ++i) scale *= 10;
+
+    const uint32_t scaled =
+        static_cast<uint32_t>(value * static_cast<double>(scale) + 0.5);
+
+    if (negative && scaled != 0) out.print('-');
+    out.print(static_cast<uint32_t>(scaled / scale));
+
+    if (decimals > 0) {
+        out.print('.');
+        const uint32_t frac = scaled % scale;
+        for (uint32_t div = scale / 10; div > 0; div /= 10) {
+            out.print(static_cast<char>('0' + (frac / div) % 10));
+        }
+    }
+}
+
 void output_csv(const light_nmea::NMEAData& data) {
     // Parse compact UTC time (HHMMSS) and UTC date (DDMMYY)
     uint32_t t = data.time_utc;
@@ -126,6 +193,22 @@ void output_csv(const light_nmea::NMEAData& data) {
     int s = t % 100;
     
     int day = d / 10000;
+
+#if defined(LIGHTNMEA_USE_MFSHIELD)
+    // На индикатор шилда - время UTC в формате HH.MM (точка между часами
+    // и минутами, 4 знакоместа). Значение 0 означает "времени ещё нет".
+    if (t != 0) {
+        char clockText[6];
+        clockText[0] = static_cast<char>('0' + (h / 10) % 10);
+        clockText[1] = static_cast<char>('0' + h % 10);
+        clockText[2] = '.';
+        clockText[3] = static_cast<char>('0' + (m / 10) % 10);
+        clockText[4] = static_cast<char>('0' + m % 10);
+        clockText[5] = '\0';
+        shieldDisplay.print(clockText);
+        display_has_time = true;
+    }
+#endif
     int mon = (d / 100) % 100;
     int yr = d % 100;
 
@@ -136,22 +219,45 @@ void output_csv(const light_nmea::NMEAData& data) {
     // constellation,fix_mode,hdop. Time is "HH:MM:SS", date is "DD.MM.20YY"
     // (both UTC); constellation and fix-mode are NAMES (not numeric enums),
     // matching GNSSData::from_csv()/from_parser().
-    Serial.printf("%d,%u,%.6f,%.6f,%.1f,%.1f,%.1f,%02d:%02d:%02d,%02d.%02d.20%02d,%s,%s,%.2f\n",
-        data.valid ? 1 : 0,                 // 1. Valid (0/1)
-        static_cast<unsigned>(data.satellites), // 2. Satellites
-        data.latitude_deg(),                // 3. Latitude (deg)
-        data.longitude_deg(),               // 4. Longitude (deg)
-        data.speed_kmh(),                   // 5. Speed (km/h)
-        data.course_true_deg(),             // 6. Course true (deg)
-        data.altitude_m(),                  // 7. Altitude (m)
-        h, m, s,                            // 8. Time (UTC) HH:MM:SS
-        day, mon, yr,                       // 9. Date (UTC) DD.MM.20YY
-        light_nmea::detail::get_name(light_nmea::detail::CST_NAMES,
-                                     static_cast<uint8_t>(data.constellation)), // 10. Constellation
-        light_nmea::detail::get_name(light_nmea::detail::FIX_NAMES,
-                                     static_cast<uint8_t>(data.fix_mode)),      // 11. Fix mode
-        data.hdop_value()                   // 12. HDOP
-    );
+    //
+    // Печать через Print, а не printf: на AVR (Arduino UNO) нет
+    // HardwareSerial::printf, а snprintf("%f") требует printf-floating point.
+    Serial.print(data.valid ? 1 : 0);               // 1. Valid (0/1)
+    Serial.print(',');
+    Serial.print(static_cast<unsigned>(data.satellites)); // 2. Satellites
+    Serial.print(',');
+    printFixed(Serial, data.latitude_deg(), 6);     // 3. Latitude (deg)
+    Serial.print(',');
+    printFixed(Serial, data.longitude_deg(), 6);    // 4. Longitude (deg)
+    Serial.print(',');
+    printFixed(Serial, data.speed_kmh(), 1);        // 5. Speed (km/h)
+    Serial.print(',');
+    printFixed(Serial, data.course_true_deg(), 1);  // 6. Course true (deg)
+    Serial.print(',');
+    printFixed(Serial, data.altitude_m(), 1);       // 7. Altitude (m)
+    Serial.print(',');
+    print2(Serial, h);                              // 8. Time (UTC) HH:MM:SS
+    Serial.print(':');
+    print2(Serial, m);
+    Serial.print(':');
+    print2(Serial, s);
+    Serial.print(',');
+    print2(Serial, day);                            // 9. Date (UTC) DD.MM.20YY
+    Serial.print('.');
+    print2(Serial, mon);
+    Serial.print(".20");
+    print2(Serial, yr);
+    Serial.print(',');
+    Serial.print(light_nmea::detail::get_name(      // 10. Constellation
+        light_nmea::detail::CST_NAMES,
+        static_cast<uint8_t>(data.constellation)));
+    Serial.print(',');
+    Serial.print(light_nmea::detail::get_name(      // 11. Fix mode
+        light_nmea::detail::FIX_NAMES,
+        static_cast<uint8_t>(data.fix_mode)));
+    Serial.print(',');
+    printFixed(Serial, data.hdop_value(), 2);       // 12. HDOP
+    Serial.println();
 }
 
 void process_gps_data() {
@@ -160,6 +266,16 @@ void process_gps_data() {
         
         if (parser.parse_line(std::string_view(serialBuffer))) {
             const auto& data = parser.data();
+#if defined(LIGHTNMEA_STATUS_NOFIX)
+            ++parsed_lines;
+            switch (data.msg_type) {
+                case light_nmea::MessageType::RMC: ++cnt_rmc; break;
+                case light_nmea::MessageType::GGA: ++cnt_gga; break;
+                case light_nmea::MessageType::VTG: ++cnt_vtg; break;
+                case light_nmea::MessageType::GLL: ++cnt_gll; break;
+                default: break;
+            }
+#endif
             
             if (data.has_coordinates() && data.valid) {
                 if (data.time_utc != last_printed_time) {
@@ -209,6 +325,21 @@ void setup() {
     Serial.println("Waiting for GPS data...");
     Serial.println();
 
+#if defined(LIGHTNMEA_USE_MFSHIELD)
+    // Индикатор Multi-Function Shield: тест всех сегментов ~0.5 с,
+    // затем прочерки до прихода времени от GNSS.
+    shieldDisplay.begin();
+    shieldDisplay.print("8888");
+    {
+        const uint32_t testStart = millis();
+        while (millis() - testStart < 500) {
+            shieldDisplay.refresh();
+        }
+    }
+    shieldDisplay.print("----");
+    Serial.println("Display: Multi-Function Shield (2 x 74HC595) initialized");
+#endif
+
     // Initialize GPS Serial
 #ifdef USE_SOFTWARE_SERIAL
     gpsSerial.begin(GPS_BAUD_RATE);
@@ -239,6 +370,11 @@ void setup() {
 // ============================================================================
 
 void loop() {
+#if defined(LIGHTNMEA_USE_MFSHIELD)
+    // Динамическая индикация: переключаем разряды как можно чаще.
+    shieldDisplay.refresh();
+#endif
+
     // Read from GPS UART
 #ifdef USE_SOFTWARE_SERIAL
     while (gpsSerial.available()) {
@@ -259,6 +395,35 @@ void loop() {
         }
     }
     
+#if defined(LIGHTNMEA_STATUS_NOFIX)
+    if (millis() - last_status_ms >= 1000) {
+        last_status_ms = millis();
+        const auto& d = parser.data();
+        Serial.print("# status: lines=");
+        Serial.print(parsed_lines);
+        Serial.print(" rmc=");
+        Serial.print(cnt_rmc);
+        Serial.print(" gga=");
+        Serial.print(cnt_gga);
+        Serial.print(" vtg=");
+        Serial.print(cnt_vtg);
+        Serial.print(" gll=");
+        Serial.print(cnt_gll);
+        Serial.print(" sats=");
+        Serial.print(static_cast<unsigned>(d.satellites));
+        Serial.print(" hdop=");
+        Serial.print(d.hdop_value(), 2);
+        Serial.print(" alt=");
+        Serial.print(d.altitude_m(), 1);
+        Serial.print(" valid=");
+        Serial.print(d.valid ? 1 : 0);
+        Serial.print(" fix=");
+        Serial.print(static_cast<unsigned>(d.fix_mode));
+        Serial.print(" utc=");
+        Serial.println(static_cast<unsigned long>(d.time_utc));
+    }
+#endif
+
     // Toggle LED every 500ms to indicate system is alive
     if (millis() - last_led_toggle > 500) {
         last_led_toggle = millis();
@@ -269,4 +434,15 @@ void loop() {
             digitalWrite(LED_PIN, LOW);
         }
     }
+
+#if defined(LIGHTNMEA_USE_MFSHIELD)
+    // Пока нет времени от GNSS - прокручиваем все поддерживаемые символы,
+    // чтобы индикатор можно было проверить без подключённого модуля.
+    if (!display_has_time && (millis() - last_demo_ms) >= 800) {
+        last_demo_ms = millis();
+        shieldDisplay.print(DISPLAY_DEMO[demo_index]);
+        demo_index = static_cast<uint8_t>(
+            (demo_index + 1) % (sizeof(DISPLAY_DEMO) / sizeof(DISPLAY_DEMO[0])));
+    }
+#endif
 }

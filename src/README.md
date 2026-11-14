@@ -1,28 +1,28 @@
-# LightNMEA GPS Logger - Cross-Platform Firmware
+# LightNMEA GNSS Logger - Cross-Platform Firmware
 
 ## Overview
 
 [`main.cpp`](main.cpp) is a **cross-platform** Arduino firmware that:
 
-- Receives NMEA 0183 sentences from a GPS/GNSS module via a serial port
+- Receives NMEA 0183 sentences from a GNSS module via a serial port
   (hardware UART or SoftwareSerial, depending on the board)
 - Parses the data with the high-performance, integer-only
   [LightNMEA](../lib/LightNMEA/README.md) library
 - Outputs one clean CSV line per second to the USB serial port (`Serial`)
-  at **115200 baud** (GPS port runs at **38400 baud**)
+  at **115200 baud** (GNSS port, runs at **38400 baud**)
 
 ### Supported Platforms
 
 The platform is auto-detected at compile time via preprocessor macros:
 
-| Platform | GPS port | GPS RX / TX pins | Debug output |
+| Platform | GNSS port | GNSS RX / TX pins | Debug output |
 |----------|----------|------------------|--------------|
 | Raspberry Pi Pico (RP2040) | `Serial1` | GPIO 1 / 0 | `Serial` (USB-CDC) |
 | STM32 (Blue Pill, Nucleo)  | `Serial1` | PA3 / PA2 | `Serial` (USB) |
 | ESP32                      | `Serial1` | GPIO 16 / 17 | `Serial` (USB) |
-| ESP8266                    | `Serial`  | GPIO 3 / 1 | disabled (port shared with GPS) |
+| ESP8266                    | `Serial`  | GPIO 3 / 1 | disabled (port shared with GNSS) |
 | Arduino Mega (AVR)         | `Serial1` | 19 / 18 | `Serial` (USB) |
-| Arduino Uno / Nano (AVR)   | SoftwareSerial | 4 / 5 | `Serial` (USB) |
+| Arduino Uno / Nano (AVR)   | SoftwareSerial | 5 / 6 | `Serial` (USB) |
 | SAMD (Zero, Nano 33)       | `Serial1` | 13 / 14 | `Serial` (USB) |
 
 Unsupported boards fail at compile time with `#error`.
@@ -41,7 +41,7 @@ Unsupported boards fail at compile time with `#error`.
   (deduplicated by UTC time)
 - **Clean output**: 12-field CSV, ready for logging, analysis and the
   [`gnss_dashboard`](../lib/LightNMEA/examples/gnss_dashboard.cpp) TUI
-- **LED indication**: blink on each valid GPS fix + 500 ms heartbeat
+- **LED indication**: blink on each valid GNSS fix + 500 ms heartbeat
 
 ## CSV Output Format
 
@@ -82,7 +82,7 @@ This stream is consumed as-is by the
 
 ## How It Works
 
-1. `loop()` reads bytes from the GPS port into a 512-byte line buffer.
+1. `loop()` reads bytes from the GNSS port into a 512-byte line buffer.
 2. On `\n` / `\r` the accumulated line is handed to
    [`light_nmea::Parser::parse_line()`](../lib/LightNMEA/include/light_nmea.hpp:410).
 3. After a successful parse (CRC-validated, constellation-filtered), the
@@ -101,8 +101,64 @@ pio run -e pico -t upload
 pio device monitor -b 115200   # watch the CSV stream
 ```
 
+For the Arduino UNO R3 with the Multi-Function Shield use `env:uno`:
+
+```console
+pio run -e uno -t upload
+pio device monitor -b 115200
+```
+
 The same sources compile for the other supported boards once an
 `[env:<board>]` section is added to `platformio.ini`.
+
+## MultiFunction Shield HW-262 V0.0.5 (Arduino UNO R3)
+
+The `env:uno` environment defines `LIGHTNMEA_USE_MFSHIELD`, which enables the
+4-digit display driver in
+[`lib/MFShieldDisplay`](../lib/MFShieldDisplay/src/mfshield_display.hpp).
+A standalone verification sketch lives in
+[`lib/LightNMEA/examples/uno_mfshield_display`](../lib/LightNMEA/examples/uno_mfshield_display/src/main.cpp):
+
+```console
+cd lib/LightNMEA/examples/uno_mfshield_display
+pio run -e uno -t upload
+pio device monitor -b 115200
+```
+
+Shield pin usage (HW-262, V0.0.5):
+
+| Function | Pins |
+|----------|------|
+| 4-digit display (2 x 74HC595) | LATCH `D4`, CLOCK `D7`, DATA `D8` |
+| LEDs D1-D4 (active LOW) | `D10`..`D13` |
+| Buzzer (active LOW, PNP) | `D3` |
+| IR receiver | `D2` |
+| Potentiometer | `A0` |
+| Buttons S1-S3 (pressed = LOW) | `A1`..`A3` |
+| Temperature sensor (LM35 / DS18B20) | `A4` |
+| Free for GNSS / external modules | `D5`, `D6`, `D9`, `A5` |
+
+Because `D4` is the display latch, the GNSS SoftwareSerial port on UNO is moved
+to `D5` (RX) / `D6` (TX). The display shows `HH.MM` (UTC) once a valid time
+arrives from the GNSS module; until then it cycles through all supported
+glyphs as a self-test. `refresh()` must be called from `loop()` - the driver
+uses software multiplexing and no timers/interrupts.
+
+Supported glyphs: `0`-`9`, `A`, `C`, `E`, `F`, `H`, `L`, `P`, `U`, `-`, `_`,
+space and the decimal point (merged into the previous digit). Unknown
+characters are shown as a blank digit.
+
+Driver notes:
+
+- Classic shield: segments active LOW, digit select active HIGH
+  (`0xF1`, `0xF2`, `0xF4`, `0xF8`). Some clones invert both polarities - use
+  `setWiring(MFShieldDisplay::Wiring::InvertedClone)` if characters look
+  garbled or the display stays dark.
+- If the text appears mirrored (right-to-left), call `setReverseDigits(true)`.
+- Non-standard shield revisions with different 74HC595 pins can be handled by
+  the constructor: `MFShieldDisplay(latch, clock, data)`.
+- Software multiplexing means `refresh()` should be called on every `loop()`
+  iteration; a full 4-digit cycle is ~5 ms.
 
 ### Native (host) build - no hardware needed
 
@@ -111,7 +167,7 @@ same `main.cpp` for **x86** using an Arduino shim
 ([`native/Arduino.h`](../native/Arduino.h)) that maps:
 
 - `Serial` (debug output) -> stdout
-- `Serial1` (GPS input)   -> stdin
+- `Serial1` (GNSS input)   -> stdin
 
 This lets you validate the parsing/CSV logic on the host by replaying NMEA logs:
 
@@ -134,7 +190,7 @@ variables.
 
 ## Wiring
 
-Connect the GPS module's TX to the board's RX pin (see table above), the
-module's RX to the board's TX pin, and power/GND as usual. Default GPS baud
+Connect the GNSS module's TX to the board's RX pin (see table above), the
+module's RX to the board's TX pin, and power/GND as usual. Default GNSS baud
 rate is **38400** (`GPS_BAUD_RATE` in `main.cpp`) - adjust if your module
 uses a different rate (e.g. 9600).
