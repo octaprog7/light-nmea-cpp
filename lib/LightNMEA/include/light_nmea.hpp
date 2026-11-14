@@ -104,13 +104,15 @@ enum class FixMode : uint8_t {
 
 enum class MessageType : uint8_t { Unknown = 0, RMC, GGA, VTG, GLL };
 
-inline constexpr uint32_t CST_MASK_GPS = (1u << to_underlying(Constellation::GPS));
-inline constexpr uint32_t CST_MASK_GLONASS = (1u << to_underlying(Constellation::GLONASS));
-inline constexpr uint32_t CST_MASK_GALILEO = (1u << to_underlying(Constellation::Galileo));
-inline constexpr uint32_t CST_MASK_BEIDOU = (1u << to_underlying(Constellation::BeiDou));
-inline constexpr uint32_t CST_MASK_QZSS = (1u << to_underlying(Constellation::QZSS));
-inline constexpr uint32_t CST_MASK_NAVIC = (1u << to_underlying(Constellation::NavIC));
-inline constexpr uint32_t CST_MASK_MULTI = (1u << to_underlying(Constellation::Multi));
+// uint32_t{1}, а не 1u: на 16-битных платформах (AVR, MSP430) 1u - это 16 бит,
+// и сдвиг на 16 и более дал бы непредсказуемое поведение.
+inline constexpr uint32_t CST_MASK_GPS = (uint32_t{1} << to_underlying(Constellation::GPS));
+inline constexpr uint32_t CST_MASK_GLONASS = (uint32_t{1} << to_underlying(Constellation::GLONASS));
+inline constexpr uint32_t CST_MASK_GALILEO = (uint32_t{1} << to_underlying(Constellation::Galileo));
+inline constexpr uint32_t CST_MASK_BEIDOU = (uint32_t{1} << to_underlying(Constellation::BeiDou));
+inline constexpr uint32_t CST_MASK_QZSS = (uint32_t{1} << to_underlying(Constellation::QZSS));
+inline constexpr uint32_t CST_MASK_NAVIC = (uint32_t{1} << to_underlying(Constellation::NavIC));
+inline constexpr uint32_t CST_MASK_MULTI = (uint32_t{1} << to_underlying(Constellation::Multi));
 inline constexpr uint32_t CST_MASK_ALL = 0xFFFFFFFF;
 
 // ============================================================================
@@ -453,7 +455,7 @@ inline bool Parser::parse_line(std::string_view line) noexcept {
     if (config_.enable_diagnostics) diag_.reject_unknown_cst++;
     return false;
   }
-  if (!(config_.cst_mask & (1u << to_underlying(cst)))) LIGHT_NMEA_UNLIKELY {
+  if (!(config_.cst_mask & (uint32_t{1} << to_underlying(cst)))) LIGHT_NMEA_UNLIKELY {
     if (config_.enable_diagnostics) diag_.reject_filtered_cst++;
     return false;
   }
@@ -767,9 +769,12 @@ inline bool Parser::parse_gga(std::string_view line, size_t /*star_idx*/) noexce
     }
 
     if (config_.trust_gga_fix) {
-      // parse_uint32 неотрицателен по строению, поэтому проверяем только верхнюю границу таблицы.
-      const int fix_quality = static_cast<int>(parse_uint32(fix_quality_sv));
-      if (fix_quality < static_cast<int>(detail::GGA_QUALITY_FIX_MODE.size())) {
+      // parse_uint32 неотрицателен по строению, поэтому проверяю только верхнюю границу таблицы.
+      // uint16_t, а не int: на 16-битных платформах int тоже 16 бит, но приведение
+      // к int скрывает усечение. Fix Quality по NMEA 0183 - 0..9, так что uint16_t
+      // покрывает реальные значения, а сравнение остается 16-битным (без роста кода).
+      const uint16_t fix_quality = static_cast<uint16_t>(parse_uint32(fix_quality_sv));
+      if (fix_quality < detail::GGA_QUALITY_FIX_MODE.size()) {
         data_.fix_mode = detail::GGA_QUALITY_FIX_MODE[fix_quality];
       }
     }

@@ -86,15 +86,18 @@ enum lightnmea_msg_type {
 
 /* --------------------------------------------------------------------------
  * Маски фильтра созвездий (совпадают с CST_MASK_* из light_nmea.hpp)
+ *
+ * UINT32_C(1), а не 1u: на 16-битных платформах (AVR, MSP430) 1u - это 16 бит,
+ * и сдвиг на 16 и более дал бы непредсказуемое поведение.
  * ------------------------------------------------------------------------*/
-#define LIGHTNMEA_CST_MASK_GPS     (1u << LIGHTNMEA_CST_GPS)
-#define LIGHTNMEA_CST_MASK_GLONASS (1u << LIGHTNMEA_CST_GLONASS)
-#define LIGHTNMEA_CST_MASK_GALILEO (1u << LIGHTNMEA_CST_GALILEO)
-#define LIGHTNMEA_CST_MASK_BEIDOU  (1u << LIGHTNMEA_CST_BEIDOU)
-#define LIGHTNMEA_CST_MASK_QZSS    (1u << LIGHTNMEA_CST_QZSS)
-#define LIGHTNMEA_CST_MASK_NAVIC   (1u << LIGHTNMEA_CST_NAVIC)
-#define LIGHTNMEA_CST_MASK_MULTI   (1u << LIGHTNMEA_CST_MULTI)
-#define LIGHTNMEA_CST_MASK_ALL     0xFFFFFFFFu
+#define LIGHTNMEA_CST_MASK_GPS     (UINT32_C(1) << LIGHTNMEA_CST_GPS)
+#define LIGHTNMEA_CST_MASK_GLONASS (UINT32_C(1) << LIGHTNMEA_CST_GLONASS)
+#define LIGHTNMEA_CST_MASK_GALILEO (UINT32_C(1) << LIGHTNMEA_CST_GALILEO)
+#define LIGHTNMEA_CST_MASK_BEIDOU  (UINT32_C(1) << LIGHTNMEA_CST_BEIDOU)
+#define LIGHTNMEA_CST_MASK_QZSS    (UINT32_C(1) << LIGHTNMEA_CST_QZSS)
+#define LIGHTNMEA_CST_MASK_NAVIC   (UINT32_C(1) << LIGHTNMEA_CST_NAVIC)
+#define LIGHTNMEA_CST_MASK_MULTI   (UINT32_C(1) << LIGHTNMEA_CST_MULTI)
+#define LIGHTNMEA_CST_MASK_ALL     UINT32_C(0xFFFFFFFF)
 
 /* --------------------------------------------------------------------------
  * Распарсенные данные (плоская C-структура, целочисленные raw-поля)
