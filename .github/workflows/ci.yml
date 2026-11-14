@@ -4,11 +4,12 @@
 # Runs on push to main/master and on pull requests.
 #
 # Jobs:
-#   cmake       - build + unit tests (Linux/macOS/Windows, -Werror)
-#   platformio  - firmware compilation (Pico, ESP32) and ESP32 RTOS benchmark
-#   arduino     - Arduino sketch compilation (BasicGPS/GPSToJSON/GPSLogger)
-#   freertos    - FreeRTOS example and RTOS benchmark build (POSIX port)
-#   zephyr      - Zephyr example build (native_sim)
+#   cmake         - build + unit tests (Linux/macOS/Windows, -Werror)
+#   platformio    - firmware compilation (Pico, ESP32) and ESP32 RTOS benchmark
+#   arduino       - Arduino sketch compilation (BasicGPS/GPSToJSON/GPSLogger)
+#   freertos      - FreeRTOS example and RTOS benchmark build (POSIX port)
+#   zephyr        - Zephyr example build (native_sim)
+#   single-header - single-header artifact sync + standalone build
 # ============================================================================
 
 name: CI
@@ -83,8 +84,8 @@ jobs:
 
   arduino:
     name: Arduino sketches
-    # ВАЖНО: не ubuntu-latest — на Ubuntu 26.04 (миграция ubuntu-latest)
-    # экшен compile-sketches падает: его pyproject.toml требует Python
+    # ВАЖНО: не ubuntu-latest - на Ubuntu 26.04 (миграция ubuntu-latest)
+    # действие compile-sketches падает: его pyproject.toml требует Python
     # 3.12.4, для которой setup-python@v6 нет сборки x64/Ubuntu 26.04
     # ("The version '3.12.4' ... was not found for Ubuntu 26.04").
     runs-on: ubuntu-24.04
@@ -167,7 +168,30 @@ jobs:
         working-directory: lib/LightNMEA/examples/zephyr
         run: west build -b native_sim -d build/native_sim -- -DZEPHYR_TOOLCHAIN_VARIANT=host
 
-  # MSVC-строгость заголовков: clang-флаг -Wshorten-64-to-32 — аналог
+  # Артефакт lightnmea_single.hpp должен совпадать с генерацией из include/.
+  # До 1.2.0 файл был устаревшим: отсутствовал фикс MSVC C4267
+  # (static_cast<uint8_t> в parse_coordinates) и оставался цифровой
+  # разделитель C++14, ломавший сборку Arduino с -std=gnu++11.
+  single-header:
+    name: Single-header artifact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check sync with sources
+        working-directory: lib/LightNMEA
+        run: |
+          python3 scripts/amalgamate.py /tmp/lightnmea_single.hpp
+          diff -u /tmp/lightnmea_single.hpp lightnmea_single.hpp
+
+      - name: Compile standalone (C++17, warnings as errors)
+        run: |
+          printf '#include "lightnmea_single.hpp"\nint main() { return 0; }\n' > /tmp/single_check.cpp
+          g++ -std=c++17 -Wall -Wextra -Wpedantic -Werror \
+              -fno-exceptions -fno-rtti \
+              -Ilib/LightNMEA -fsyntax-only /tmp/single_check.cpp
+
+  # MSVC-строгость заголовков: clang-флаг -Wshorten-64-to-32 - аналог
   # MSVC C4267 (неявное сужение size_t -> uint8_t/int32_t), который GCC
   # не ловит. Ловит проблемы Windows-джобы ДО её запуска (и быстрее).
   portability:
@@ -175,7 +199,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # ВАЖНО: clang обязателен — флаг -Wshorten-64-to-32 (аналог MSVC
+      # ВАЖНО: clang обязателен - флаг -Wshorten-64-to-32 (аналог MSVC
       # C4267) не существует в GCC: с -Werror GCC ругается на неизвестную
       # опцию уже на этапе проверки компилятора (Configure).
       - name: Configure (strict narrowing)

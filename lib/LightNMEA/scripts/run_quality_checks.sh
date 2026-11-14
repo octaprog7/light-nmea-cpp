@@ -12,6 +12,8 @@
 #      out-of-bounds access, use-after-free, int overflows, division by zero.
 #   5. -fno-exceptions -fno-rtti: guaranteed to work without exceptions/RTTI.
 #   6. valgrind (if installed): memcheck on a reduced fuzz run.
+#   7. Single-header artifact: lightnmea_single.hpp matches amalgamate.py
+#      output and compiles standalone (guards against stale artifacts).
 #
 # Usage:
 #   ./run_quality_checks.sh                # all checks (default)
@@ -20,6 +22,7 @@
 #   ./run_quality_checks.sh sanitize       # unit + fuzz under ASan/UBSan
 #   ./run_quality_checks.sh noexceptions   # build without exceptions/RTTI
 #   ./run_quality_checks.sh valgrind       # memcheck (if installed)
+#   ./run_quality_checks.sh single         # single-header sync + standalone build
 #   ./run_quality_checks.sh clean          # remove build-checks/
 #   ./run_quality_checks.sh help
 #
@@ -166,6 +169,42 @@ check_valgrind() {
     ok "valgrind memcheck clean (no errors or leaks)"
 }
 
+check_single_header() {
+    if ! command -v python3 >/dev/null 2>&1; then
+        info "python3 not installed - single-header check skipped"
+        return
+    fi
+    info "Single-header artifact: sync with sources + standalone build"
+    local gen="$BUILD_DIR/lightnmea_single.hpp"
+    local diff_log="$BUILD_DIR/single_header.diff"
+    local build_log="$BUILD_DIR/single_header.build.log"
+
+    if ! python3 scripts/amalgamate.py "$gen" >/dev/null 2>&1; then
+        bad "amalgamate.py failed"
+        return
+    fi
+    if ! diff -u "$gen" lightnmea_single.hpp >"$diff_log" 2>&1; then
+        tail -20 "$diff_log"
+        bad "lightnmea_single.hpp is out of sync (run: python3 scripts/amalgamate.py)"
+        return
+    fi
+
+    printf '#include "lightnmea_single.hpp"\nint main() { return 0; }\n' \
+        >"$BUILD_DIR/single_check.cpp"
+    if ! $CC -std=c++17 -Wall -Wextra -Wpedantic -fno-exceptions -fno-rtti \
+            -I. -fsyntax-only "$BUILD_DIR/single_check.cpp" 2>"$build_log"; then
+        cat "$build_log"
+        bad "single-header does not compile standalone"
+        return
+    fi
+    if [ -s "$build_log" ]; then
+        cat "$build_log"
+        bad "single-header compiles with warnings"
+        return
+    fi
+    ok "single-header in sync and compiles cleanly (C++17, 0 warnings)"
+}
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -187,13 +226,16 @@ case "${1:-all}" in
     valgrind)
         check_valgrind
         ;;
+    single|header)
+        check_single_header
+        ;;
     clean)
         rm -rf "$BUILD_DIR"
         echo "[OK] Removed: $BUILD_DIR"
         exit 0
         ;;
     help|-h|--help)
-        sed -n '2,27p' "$SELF" | sed 's/^# \{0,1\}//'
+        sed -n '2,29p' "$SELF" | sed 's/^# \{0,1\}//'
         exit 0
         ;;
     all)
@@ -203,6 +245,7 @@ case "${1:-all}" in
         check_sanitize
         check_noexceptions
         check_valgrind
+        check_single_header
         ;;
     *)
         echo "Unknown command: $1 (see ./run_quality_checks.sh help)"

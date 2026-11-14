@@ -5,6 +5,19 @@
 Формат основан на [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 проект придерживается [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **single-header**: `lightnmea_single.hpp` пересоздан из исходников.
+  Код отставал от релиза 1.1.1: в нем не было
+  `static_cast<uint8_t>` в `parse_coordinates()` (фикс MSVC C4267) и
+  оставался цифровой разделитель `10'000'000` (C++14).
+- **CI**: новый job `single-header` проверяет, что код совпадает с
+  выводом `scripts/amalgamate.py`, и собирает его отдельно
+  (`-std=c++17 -Wall -Wextra -Wpedantic -Werror`). Локально:
+  `./scripts/run_quality_checks.sh single`.
+
 ## [1.1.1] - 2026-11-05
 
 ### Fixed
