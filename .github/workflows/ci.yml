@@ -10,6 +10,7 @@
 #   freertos      - FreeRTOS example and RTOS benchmark build (POSIX port)
 #   zephyr        - Zephyr example build (native_sim)
 #   single-header - single-header artifact sync + standalone build
+#   avr-int16     - AVR 8-bit core, 16-bit int/size_t data model (ATmega32)
 # ============================================================================
 
 name: CI
@@ -190,6 +191,39 @@ jobs:
           g++ -std=c++17 -Wall -Wextra -Wpedantic -Werror \
               -fno-exceptions -fno-rtti \
               -Ilib/LightNMEA -fsyntax-only /tmp/single_check.cpp
+
+  # AVR - 8-битное ядро, но модель данных C у него 16-битная:
+  # sizeof(int) = 2, sizeof(size_t) = 2, sizeof(void*) = 2
+  # (__SIZEOF_INT__=2, __SIZEOF_SIZE_T__=2 в avr-gcc).
+  # Именно эта модель ловит регрессии, невидимые на 32/64-битных сборках:
+  # усечение size_t -> uint8_t, сдвиги 1u на 16+ бит, переполнение int.
+  # Прошивка не выполняется: компиляция, линковка и контроль лимитов
+  # ATmega32 (32 КБ Flash / 2 КБ SRAM).
+  avr-int16:
+    name: AVR int16 data model (ATmega32)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio/packages
+          key: pio-toolchain-atmelavr-${{ runner.os }}
+      # Системный gcc-avr в Ubuntu слишком старый для C++17, поэтому берем
+      # avr-gcc 7.3.0 из PlatformIO. Если в toolchain нет libstdc++,
+      # build.sh сам подключает freestanding-заглушки src/stdcxx.
+      - name: Install AVR toolchain (PlatformIO)
+        run: |
+          pip install platformio
+          pio pkg install -g -t "platformio/toolchain-atmelavr"
+      - name: Build benchmark (int16 data model + size limits)
+        working-directory: lib/LightNMEA/benchmarks/avr
+        env:
+          BENCH: simple
+        run: |
+          AVR_GCC_PREFIX="$HOME/.platformio/packages/toolchain-atmelavr/bin" ./build.sh
 
   # MSVC-строгость заголовков: clang-флаг -Wshorten-64-to-32 - аналог
   # MSVC C4267 (неявное сужение size_t -> uint8_t/int32_t), который GCC

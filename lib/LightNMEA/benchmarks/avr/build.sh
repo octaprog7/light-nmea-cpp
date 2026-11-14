@@ -4,7 +4,7 @@
 # на классическом 8-битном AVR (ATmega32L-8AU, avr5) через AVRISP mkII.
 #
 # Bare-metal harness: без Arduino-ядра, USART0 (PD1 TX),
-# автовыбор бода по частоте (при 8 МГц — 38400, при 16 МГц — 115200).
+# автовыбор бода по частоте (при 8 МГц - 38400, при 16 МГц - 115200).
 #
 # Варианты бенчмарков (BENCH=avr|simple, по умолчанию avr):
 #   avr   - полный сравнительный (LightNMEA + minmea + TinyGPSPlus)
@@ -22,7 +22,8 @@
 #   ./build.sh clean              очистить артефакты
 #   ./build.sh help               справка
 #
-# Требуется: avr-gcc >= 9 (C++17), avr-libc, avrdude >= 6 (поддержка avrispmkII).
+# Требуется: avr-gcc >= 7.3 (C++17; при отсутствии libstdc++ подключаются
+# freestanding-заглушки src/stdcxx), avr-libc, avrdude >= 6 (avrispmkII).
 # Метрика: pkt/s, ns/pkt, cycles/pkt, pkt/s на МГц (best-of-N), как на 32-бит платах.
 set -euo pipefail
 cd "$(dirname "$0")"

@@ -1,5 +1,4 @@
 /*
-/*
  * bench_simple.cpp - упрощённый on-target бенчмарк LightNMEA для AVR
  *
  * Парсит пакеты через light_nmea::Parser, выводит метрику: pkt/s.
@@ -78,7 +77,7 @@ int main() {
 
         uint32_t pkt_idx = 0;
         while (total_packets < BENCH_PACKET_COUNT) {
-            const char* pkt = g_pkts[pkt_idx].data();  // C‑строка
+            const char* pkt = g_pkts[pkt_idx].data();  // C-строка
             bool ok = parser.parse_line(pkt);
             if (ok) {
                 g_sink += parser.data().has_lat_lon ? 1 : 0;
