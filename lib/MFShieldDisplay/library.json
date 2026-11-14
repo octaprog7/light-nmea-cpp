@@ -1,0 +1,17 @@
+{
+  "name": "MFShieldDisplay",
+  "version": "1.0.0",
+  "description": "4-digit 7-segment display driver for the Arduino UNO Multi-Function Shield (2 x 74HC595)",
+  "keywords": [
+    "arduino",
+    "display",
+    "7-segment",
+    "74hc595",
+    "multi-function-shield"
+  ],
+  "license": "GPL-3.0-or-later",
+  "frameworks": "arduino",
+  "build": {
+    "srcDir": "src"
+  }
+}
