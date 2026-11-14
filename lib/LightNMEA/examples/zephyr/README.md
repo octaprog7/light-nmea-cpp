@@ -38,7 +38,7 @@ west flash -d build/nrf52840dk
 ```
 
 The overlay for the nRF52840 DK is in `boards/nrf52840dk_nrf52840.overlay`
-(UART0, pins P0.06 TX / P0.08 RX, 115200 baud). Connect a GPS module to
+(UART0, pins P0.06 TX / P0.08 RX, 115200 baud). Connect a GNSS module to
 UART0 and watch the output with `west build -t monitor` (or your own terminal).
 
 For another board, create your own overlay in `boards/` and set
@@ -58,7 +58,7 @@ For another board, create your own overlay in `boards/` and set
 
 ## Configuration (prj.conf)
 
-- `CONFIG_UART_PIPE=y` — the uart_pipe API.
-- `CONFIG_CPP=y`, `CONFIG_STD_CPP17=y`, `CONFIG_REQUIRES_FULL_LIBCPP=y` —
+- `CONFIG_UART_PIPE=y` - the uart_pipe API.
+- `CONFIG_CPP=y`, `CONFIG_STD_CPP17=y`, `CONFIG_REQUIRES_FULL_LIBCPP=y` -
   C++17 and the full libstdc++ (required for `std::string_view::substr` and
   the C++ runtime).

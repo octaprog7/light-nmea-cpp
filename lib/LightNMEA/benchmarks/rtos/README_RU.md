@@ -9,14 +9,14 @@
 
 ```
 rtos/
-├── bench_compare_rtos.hpp   # общее портируемое ядро (горячие циклы, best-of-N,
-│                            #   метрики). Не зависит от ОСРВ: таймер и вывод
-│                            #   встраиваются в BenchEnv.
-├── Arduino.h                # минимальная обёртка Arduino для сборки TinyGPSPlus
-│                            #   (millis() определяется в обёртке ОСРВ).
-├── freertos/                # FreeRTOS-обёртка (POSIX-порт, хост)
-├── zephyr/                  # Zephyr-обёртка (native_sim / nRF52840 DK)
-└── esp32/                   # ESP32 D1 mini (FreeRTOS, ESP-IDF/Arduino)
+|-- bench_compare_rtos.hpp   # общее портируемое ядро (горячие циклы, best-of-N,
+|                            #   метрики). Не зависит от ОСРВ: таймер и вывод
+|                            #   встраиваются в BenchEnv.
+|-- Arduino.h                # минимальная обёртка Arduino для сборки TinyGPSPlus
+|                            #   (millis() определяется в обёртке ОСРВ).
+|-- freertos/                # FreeRTOS-обёртка (POSIX-порт, хост)
+|-- zephyr/                  # Zephyr-обёртка (native_sim / nRF52840 DK)
+`-- esp32/                   # ESP32 D1 mini (FreeRTOS, ESP-IDF/Arduino)
 ```
 
 Конкуренты (minmea, TinyGPSPlus) берутся из vendored-копий
@@ -97,7 +97,7 @@ watchdog (по умолчанию 5 с).
    - `print()` - printf-совместимый вывод.
 2. `bench_rtos::run_benchmark()` прогоняет три парсера на одном и том же
    наборе пакетов (best-of-N) и печатает таблицу.
-3. Горячие циклы не используют heap и FPU — работают на Cortex-M0+ и RISC-V.
+3. Горячие циклы не используют heap и FPU - работают на Cortex-M0+ и RISC-V.
 
 Источники времени:
 

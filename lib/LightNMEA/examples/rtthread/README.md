@@ -14,10 +14,10 @@ RT-Thread unchanged.
 
 | Mode | Data source | Selected by |
 |------|-------------|-------------|
-| UART (default) | real GPS module on a serial device | — |
+| UART (default) | real GNSS module on a serial device | - |
 | Simulation | built-in sample sentences, producer thread | `LIGHTNMEA_SIM_FEED=y` |
 
-The simulation mode is handy for boards without a GPS attached
+The simulation mode is handy for boards without a GNSS attached
 (e.g. `qemu-vexpress-a9`) or CI smoke tests.
 
 ## Requirements
@@ -34,7 +34,7 @@ The simulation mode is handy for boards without a GPS attached
 1. Copy this directory into the BSP tree (or mount it as the `applications`
    directory) so that `SConscript` is picked up by SCons.
 2. Enable the example in `menuconfig` (`Kconfig` from this directory):
-   - `LIGHTNMEA_UART_NAME` — name of the serial device connected to the GPS
+   - `LIGHTNMEA_UART_NAME` - name of the serial device connected to the GNSS
      (default `uart1`).
 3. Build and flash:
 
@@ -42,7 +42,7 @@ The simulation mode is handy for boards without a GPS attached
    scons
    ```
 
-4. Connect the GPS module to the selected UART (9600 baud for most modules)
+4. Connect the GNSS module to the selected UART (9600 baud for most modules)
    and watch the RT-Thread console (msh):
 
    ```
@@ -68,10 +68,10 @@ buffer and the parsed positions are printed to the console.
 
 ## How it works
 
-1. `rt_device_find(LIGHTNMEA_UART_NAME)` + `rt_device_open(..., INT_RX)` —
+1. `rt_device_find(LIGHTNMEA_UART_NAME)` + `rt_device_open(..., INT_RX)` -
    the serial device is opened in interrupt RX mode.
 2. The `rx_indicate` callback (`uart_input`) only releases the `ln_rx`
-   semaphore — no parsing in interrupt context.
+   semaphore - no parsing in interrupt context.
 3. The main thread wakes on the semaphore, drains the driver buffer into the
    ring buffer (`uart_drain`).
 4. `RingStream` implements the abstract `light_nmea::Stream::read()` over the
@@ -84,7 +84,7 @@ buffer and the parsed positions are printed to the console.
 ## Notes
 
 - The ring buffer (512 B) absorbs bursts between scheduler ticks; bytes are
-  silently dropped on overflow (GPS keeps streaming, the next sentences are
+  silently dropped on overflow (GNSS keeps streaming, the next sentences are
   still valid).
 - In the simulation mode a producer thread (`ln_sim`) fills the same ring
   buffer, so the parsing path is identical to the UART mode.

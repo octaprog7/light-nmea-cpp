@@ -19,10 +19,10 @@ struct array {
   using iterator = T *;
   using const_iterator = const T *;
 
-  // value-инициализация всех элементов (как std::array{})
-  constexpr array() noexcept : data_{} {}
-  constexpr array(const array &) noexcept = default;
-  constexpr array &operator=(const array &) noexcept = default;
+  // Внимание! Без пользовательских конструкторов - struct остаётся
+  // агрегатом, чтобы работала инициализация вида
+  //     std::array<const char*, 8> names = {"a", "b", ...};
+  // и value-инициализация std::array<T, N> x{};
 
   constexpr reference operator[](size_type i) noexcept { return data_[i]; }
   constexpr const_reference operator[](size_type i) const noexcept { return data_[i]; }

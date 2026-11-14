@@ -9,10 +9,10 @@ Example for the Raspberry Pi Pico (RP2040, Cortex-M0+ @ 133 MHz) with a
 | GP1 (UART0 RX) | NMEA-0183 stream | TX |
 | 3V3 / GND | power | VCC / GND |
 
-**No GPS signal?** Indoors there is no fix, and without a module at all the
+**No GNSS signal?** Indoors there is no fix, and without a module at all the
 UART stays silent. For such cases the firmware has a **demo mode**
 (`[env:pico_demo]`) that serves a built-in synthetic NMEA track through the
-exact same `Stream -> NMEAStreamReader -> Parser` pipeline — no module and no
+exact same `Stream -> NMEAStreamReader -> Parser` pipeline - no module and no
 satellites needed.
 
 Parsed data is printed to **USB CDC** (the "Pico" serial port on the host),
@@ -31,7 +31,7 @@ toggles on every received packet and goes dark if no data arrives for 5 s.
 cd lib/LightNMEA/examples/pico
 pio run -e pico                # build (real mode: GNSS on UART0)
 pio run -e pico -t upload      # flash (picotool reboots the board to BOOTSEL
-                               #  automatically — no button needed)
+                               #  automatically - no button needed)
 pio run -e pico_demo -t upload # demo mode: built-in NMEA track, module not used
 ```
 

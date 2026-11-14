@@ -1,0 +1,12 @@
+// cstdio - freestanding shim: перенаправление на avr-libc <stdio.h>
+#ifndef LIGHTNMEA_AVR_STDCXX_CSTDIO_H
+#define LIGHTNMEA_AVR_STDCXX_CSTDIO_H
+
+#include <stdio.h>
+
+namespace std {
+using ::snprintf;
+using ::vsnprintf;
+}  // namespace std
+
+#endif  // LIGHTNMEA_AVR_STDCXX_CSTDIO_H

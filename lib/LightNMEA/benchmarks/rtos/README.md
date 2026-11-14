@@ -9,14 +9,14 @@ from GP/GN talkers). This is an RTOS adaptation of
 
 ```
 rtos/
-├── bench_compare_rtos.hpp   # shared portable core (hot loops, best-of-N,
-│                            #   metrics). RTOS-independent: the timer and
-│                            #   output are injected via BenchEnv.
-├── Arduino.h                # minimal Arduino shim to build TinyGPSPlus
-│                            #   (millis() is defined in the RTOS shim).
-├── freertos/                # FreeRTOS shim (POSIX port, host)
-├── zephyr/                  # Zephyr shim (native_sim / nRF52840 DK)
-└── esp32/                   # ESP32 D1 mini (FreeRTOS, ESP-IDF/Arduino)
+|-- bench_compare_rtos.hpp   # shared portable core (hot loops, best-of-N,
+|                            #   metrics). RTOS-independent: the timer and
+|                            #   output are injected via BenchEnv.
+|-- Arduino.h                # minimal Arduino shim to build TinyGPSPlus
+|                            #   (millis() is defined in the RTOS shim).
+|-- freertos/                # FreeRTOS shim (POSIX port, host)
+|-- zephyr/                  # Zephyr shim (native_sim / nRF52840 DK)
+`-- esp32/                   # ESP32 D1 mini (FreeRTOS, ESP-IDF/Arduino)
 ```
 
 The competitors (minmea, TinyGPSPlus) are taken from the vendored copies in
@@ -27,11 +27,11 @@ unconditionally, and LDF does not track includes by relative path to the shared 
 
 ## Metrics
 
-- **pkt/s** — throughput (packets per second);
-- **ns/pkt** — nanoseconds per packet;
-- **cycles/pkt** — cycles per packet (from `F_CPU`);
-- **pkt/s/MHz** — pkt/s per 1 MHz of clock frequency;
-- **ok/total** — fraction of successfully parsed packets.
+- **pkt/s** - throughput (packets per second);
+- **ns/pkt** - nanoseconds per packet;
+- **cycles/pkt** - cycles per packet (from `F_CPU`);
+- **pkt/s/MHz** - pkt/s per 1 MHz of clock frequency;
+- **ok/total** - fraction of successfully parsed packets.
 
 Best-of-N runs (3 by default). Configuration via build flags:
 `BENCH_PACKET_COUNT` (default 30000) and `BENCH_PASSES` (default 3).
@@ -84,7 +84,7 @@ pio run -t upload -e d1_mini32
 pio device monitor -b 115200
 ```
 
-The benchmark runs in a FreeRTOS task (`xTaskCreate`, priority 2 — above
+The benchmark runs in a FreeRTOS task (`xTaskCreate`, priority 2 - above
 loopTask, so the measurement is not interrupted), timing via
 `esp_timer_get_time()` (hardware timer), output via `printf` (redirected to
 Serial UART0). Task WDT is disabled (`disableCore0WDT()`/`disableCore1WDT()`):
@@ -94,11 +94,11 @@ feed the watchdog (5 s by default).
 ## How it works
 
 1. The RTOS shim creates a `bench_rtos::BenchEnv` with two functions:
-   - `now_us()` — microsecond time source;
-   - `print()` — printf-compatible output.
+   - `now_us()` - microsecond time source;
+   - `print()` - printf-compatible output.
 2. `bench_rtos::run_benchmark()` runs the three parsers on the same packet set
    (best-of-N) and prints the table.
-3. The hot loops do not use the heap or FPU — they run on Cortex-M0+ and RISC-V.
+3. The hot loops do not use the heap or FPU - they run on Cortex-M0+ and RISC-V.
 
 Time sources:
 
@@ -114,7 +114,7 @@ Time sources:
   and provide your own `FreeRTOSConfig.h` and port instead of POSIX.
 - **Zephyr:** `k_cycle_get_32()` already uses the hardware cycle counter.
   `F_CPU` defaults to `CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC`; for the nRF52840
-  (system timer — RTC 32.768 kHz) `F_CPU=64000000` (CPU frequency) is set in
+  (system timer - RTC 32.768 kHz) `F_CPU=64000000` (CPU frequency) is set in
   `CMakeLists.txt` so that the cycles/pkt metric is meaningful. For another
   board, set your own `F_CPU` via `target_compile_definitions`.
 

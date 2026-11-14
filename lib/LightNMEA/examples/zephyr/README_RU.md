@@ -38,7 +38,7 @@ west flash -d build/nrf52840dk
 ```
 
 Overlay для nRF52840 DK лежит в `boards/nrf52840dk_nrf52840.overlay`
-(UART0, pins P0.06 TX / P0.08 RX, 115200 бод). Подключите GPS-модуль к
+(UART0, pins P0.06 TX / P0.08 RX, 115200 бод). Подключите GNSS-модуль к
 UART0 и следите за выводом в `west build -t monitor` (или свой терминал).
 
 Для другой платы создайте свой overlay в `boards/` и настройте
@@ -46,7 +46,7 @@ UART0 и следите за выводом в `west build -t monitor` (или �
 
 ## Описание работы
 
-1. `uart_pipe_register(buf, len, pipe_handler)` — регистрирует буфер и
+1. `uart_pipe_register(buf, len, pipe_handler)` - регистрирует буфер и
    обработчик, который получает данные из UART (устройство выбирается из devicetree `chosen: zephyr,uart-pipe`).
 2. `pipe_handler` пишет байты в кольцевой буфер.
 3. `RingStream` реализует абстрактный `light_nmea::Stream::read()` поверх кольцевого буфера.
@@ -55,7 +55,7 @@ UART0 и следите за выводом в `west build -t monitor` (или �
 
 ## Конфигурация (prj.conf)
 
-- `CONFIG_UART_PIPE=y` — API uart_pipe.
-- `CONFIG_CPP=y`, `CONFIG_STD_CPP17=y`, `CONFIG_REQUIRES_FULL_LIBCPP=y` —
+- `CONFIG_UART_PIPE=y` - API uart_pipe.
+- `CONFIG_CPP=y`, `CONFIG_STD_CPP17=y`, `CONFIG_REQUIRES_FULL_LIBCPP=y` -
   C++17 и полная libstdc++ (нужна для `std::string_view::substr` и
   C++ runtime).

@@ -1,0 +1,7 @@
+// climits-freestanding shim, перенаправляю на avr-libc <limits.h>
+#ifndef LIGHTNMEA_AVR_STDCXX_CLIMITS_H
+#define LIGHTNMEA_AVR_STDCXX_CLIMITS_H
+
+#include <limits.h>
+
+#endif  // LIGHTNMEA_AVR_STDCXX_CLIMITS_H

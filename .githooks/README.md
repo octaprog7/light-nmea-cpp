@@ -7,4 +7,4 @@ git config core.hooksPath .githooks
 ```
 
 Отключить на один push: `git push --no-verify`.
-См. также `.github/CI-CHECKLIST_RU.md` (копия вне репо) — чеклист перед выпуском.
+См. также `.github/CI-CHECKLIST_RU.md` (копия вне репо) - чеклист перед выпуском.

@@ -1,9 +1,9 @@
-# AVR Benchmark — LightNMEA
+# AVR Benchmark - LightNMEA
 
 On-target бенчмарк парсера NMEA-сентенций для классического 8-битного AVR (ATmega32L-8AU).
 
 > **Актуальная версия:** для Arduino UNO R3 (ATmega328P @ 16 МГц, CH340G) бенч
-> переписан и переехал в [`../uno/`](../uno/) — прошивка через Optiboot по UART,
+> переписан и переехал в [`../uno/`](../uno/) - прошивка через Optiboot по UART,
 > без ISP-программатора и без записи фьюзов (см. [brick-recovery.md](brick-recovery.md)).
 > Здесь методика/тулчейн для ATmega32 через AVRISP mkII сохранена для справки.
 
@@ -49,12 +49,12 @@ OPT=-Os ./build.sh
 
 ## Аппаратная конфигурация
 
-### Подключение ISP (AVRISP mkII → плата)
+### Подключение ISP (AVRISP mkII -> плата)
 
 | AVRISP mkII | ATmega32L |
 |-------------|-----------|
 | Pin 1 (MISO) | PB6 (MISO, pin 17) |
-| Pin 2 (NC) | — |
+| Pin 2 (NC) | - |
 | Pin 3 (SCK) | PB7 (SCK, pin 19) |
 | Pin 4 (MOSI) | PB5 (MOSI, pin 18) |
 | Pin 5 (RST) | PB4 (RESET, pin 1) |
@@ -66,15 +66,15 @@ OPT=-Os ./build.sh
 
 | Платa | AVRISP mkII | USB-UART |
 |-------|-------------|----------|
-| PD1 (TX, pin 2) | — | RX |
-| PD0 (RX, pin 3) | — | TX (не используется) |
+| PD1 (TX, pin 2) | - | RX |
+| PD0 (RX, pin 3) | - | TX (не используется) |
 | GND | GND | GND |
 
 **Параметры UART:**
 - 8N1 (8 бит, нет чётности, 1 стоповый)
 - Автовыбор бода:
-  - 8 МГц → 38400 бод (ошибка 0.16%)
-  - 16 МГц → 115200 бод
+  - 8 МГц -> 38400 бод (ошибка 0.16%)
+  - 16 МГц -> 115200 бод
 
 ## Результаты сборки
 
@@ -97,7 +97,7 @@ OPT=-Os ./build.sh
 ### Проблема PROGMEM
 На классическом AVR (avr5, ATmega32) constexpr/const-данные лежат во flash, но динамическая индексация через указатели (`std::string_view` / `std::array`) генерирует LD (чтение SRAM), а не LPM (чтение flash). Данные читались бы неверно.
 
-### Решение: PROGMEM-пул → SRAM-копия
+### Решение: PROGMEM-пул -> SRAM-копия
 1. Пакеты хранятся во flash как `PROGMEM`-массивы
 2. При старте копируются в SRAM-пул (`g_pool[512]`)
 3. `std::string_view` указывают в SRAM-копии
@@ -111,11 +111,11 @@ OPT=-Os ./build.sh
 ## Freestanding STL
 
 Так как тулчейн avr-gcc без libstdc++, используются заглушки в `src/stdcxx/`:
-- `<cstddef>` — `size_t`, `ptrdiff_t`
-- `<cstdint>` — `int/uintN_t`
-- `<type_traits>` — `integral_constant`, `is_enum`, `underlying_type_t`, `enable_if`, `move`, `forward`
-- `<array>` — `std::array<T, N>` с полным API
-- `<string_view>` — `std::string_view` с ctor, size, empty, operator[], data, substr
+- `<cstddef>` - `size_t`, `ptrdiff_t`
+- `<cstdint>` - `int/uintN_t`
+- `<type_traits>` - `integral_constant`, `is_enum`, `underlying_type_t`, `enable_if`, `move`, `forward`
+- `<array>` - `std::array<T, N>` с полным API
+- `<string_view>` - `std::string_view` с ctor, size, empty, operator[], data, substr
 
 ## Ожидаемые результаты
 
@@ -164,7 +164,7 @@ ATmega32L уступает 32-битным MCU в ~4 раза по pkt/s/MHz, н
 
 **Причина:** AVRISP mkII не может установить ISP-связь при неправильной частоте чипа.
 
-**Решение:** Полная инструкция по восстановлению — [brick-recovery.md](brick-recovery.md)
+**Решение:** Полная инструкция по восстановлению - [brick-recovery.md](brick-recovery.md)
 
 **Быстрый фикс:**
 1. Купить USBasp программатор (~300 руб)

@@ -1,0 +1,11 @@
+// cstdarg-freestanding shim: перенаправляю к avr-libc <stdarg.h>
+#ifndef LIGHTNMEA_AVR_STDCXX_CSTDARG_H
+#define LIGHTNMEA_AVR_STDCXX_CSTDARG_H
+
+#include <stdarg.h>
+
+namespace std {
+using ::va_list;
+}  // namespace std
+
+#endif  // LIGHTNMEA_AVR_STDCXX_CSTDARG_H

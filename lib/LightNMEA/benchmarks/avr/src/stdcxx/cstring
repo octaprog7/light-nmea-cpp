@@ -1,0 +1,18 @@
+// cstring-freestanding shim, перенаправляю на avr-libc <string.h>
+#ifndef LIGHTNMEA_AVR_STDCXX_CSTRING_H
+#define LIGHTNMEA_AVR_STDCXX_CSTRING_H
+
+#include <string.h>
+
+namespace std {
+using ::memcpy;
+using ::memmove;
+using ::memset;
+using ::strcmp;
+using ::strcpy;
+using ::strlen;
+using ::strncmp;
+using ::strncpy;
+}  // namespace std
+
+#endif  // LIGHTNMEA_AVR_STDCXX_CSTRING_H

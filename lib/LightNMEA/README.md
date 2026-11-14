@@ -3,7 +3,7 @@
 [![CI](https://github.com/octaprog7/light-nmea-cpp/actions/workflows/ci.yml/badge.svg)](https://github.com/octaprog7/light-nmea-cpp/actions/workflows/ci.yml)
 [![Docs](https://github.com/octaprog7/light-nmea-cpp/actions/workflows/pages.yml/badge.svg)](https://github.com/octaprog7/light-nmea-cpp/actions/workflows/pages.yml)
 
-An ultra-fast NMEA 0183 (GPS) parser for embedded systems and Arduino.
+An ultra-fast NMEA 0183 (GNSS) parser for embedded systems and Arduino.
 
 > **Full repository structure** (all files and their purpose): see the [root README](../../README.md#repository-structure). This document describes the library.
 
@@ -56,7 +56,7 @@ lightnmea::Parser parser;
 
 void setup() {
   Serial.begin(115200);
-  Serial1.begin(9600);  // GPS module
+  Serial1.begin(9600);  // GNSS module
 }
 
 void loop() {
@@ -88,18 +88,18 @@ Conversion to floating point is performed only on demand via the helper function
 
 | Type        | Scale          | Example `raw` | Physical value |
 |------------|----------------|---------------|----------------|
-| `Latitude` | 1e-7 ° (×10⁷) | `481173000`   | 48.117300°     |
-| `Longitude`| 1e-7 ° (×10⁷) | `115167000`   | 11.516700°     |
-| `Speed`    | ×1000          | `22400`       | 22.400 knots   |
-| `Heading`  | 1e-2 ° (×100)  | `8440`        | 84.40°         |
+| `Latitude` | 1e-7 deg (x10^7) | `481173000`   | 48.117300 deg     |
+| `Longitude`| 1e-7 deg (x10^7) | `115167000`   | 11.516700 deg     |
+| `Speed`    | x1000          | `22400`       | 22.400 knots   |
+| `Heading`  | 1e-2 deg (x100)  | `8440`        | 84.40 deg         |
 
-Valid ranges: `Latitude` -> [-90°·10⁷, +90°·10⁷], `Longitude` -> [-180°·10⁷, +180°·10⁷],
-`Heading` -> [0, 36000) — the constructor performs automatic normalization.
+Valid ranges: `Latitude` -> [-90 deg*10^7, +90 deg*10^7], `Longitude` -> [-180 deg*10^7, +180 deg*10^7],
+`Heading` -> [0, 36000) - the constructor performs automatic normalization.
 
 Fields in `light_nmea::NMEAData`: `lat`, `lon`, `speed_kn_x1000`, `speed_kmh_x1000`,
 `course_true`, `course_mag`.
 
-### How to read values — the recommended way
+### How to read values - the recommended way
 
 Use the built-in helper functions:
 
@@ -121,8 +121,8 @@ float cmg = d.course_mag_deg(); // magnetic course, degrees
 Read the `.raw` field and convert using integer arithmetic (no FPU emulation):
 
 ```cpp
-int32_t kmh = light_nmea::knots_x1000_to_kmh_x1000(d.speed_kn_x1000.raw); // knots × 1852 / 1000
-int32_t mps = light_nmea::knots_x1000_to_ms_x1000(d.speed_kn_x1000.raw); // knots × 463 / 900
+int32_t kmh = light_nmea::knots_x1000_to_kmh_x1000(d.speed_kn_x1000.raw); // knots x 1852 / 1000
+int32_t mps = light_nmea::knots_x1000_to_ms_x1000(d.speed_kn_x1000.raw); // knots x 463 / 900
 
 light_nmea::Coordinate a(d.lat, d.lon), b(other.lat, other.lon);
 int64_t d2 = a.distance_sq_to(b); // squared Euclidean distance, without sqrt()
@@ -131,28 +131,28 @@ int64_t d2 = a.distance_sq_to(b); // squared Euclidean distance, without sqrt()
 ### Operator usage rules (what is allowed for the types and why)
 
 The wrappers provide **only physically meaningful operators**; all of them are marked `constexpr noexcept`
-and `inline` — unused operators take no space in Flash or RAM:
+and `inline` - unused operators take no space in Flash or RAM:
 
-- **`Latitude` / `Longitude`** — a full set of comparison operators + `is_valid()`.
+- **`Latitude` / `Longitude`** - a full set of comparison operators + `is_valid()`.
 `+` and `-` are absent: adding two absolute coordinates is a logical error (mixing concepts). For deltas or distances
 use the "raw" values or the `Coordinate::distance_sq_to()` method.
-- **`Speed`** — comparison operators, `+`, `-`, `+=`, `-=`, unary `-`, `is_stopped()`.
-- **`Heading`** — `+`, `-`, `+=`, `-=` with automatic normalization to the range [0, 36000);
+- **`Speed`** - comparison operators, `+`, `-`, `+=`, `-=`, unary `-`, `is_stopped()`.
+- **`Heading`** - `+`, `-`, `+=`, `-=` with automatic normalization to the range [0, 36000);
 `==`, `!=`; `diff_to()` for computing the shortest signed angular difference.
 `<`/`>` operators are **intentionally absent**: for a cyclic quantity the notion of a linear order is meaningless
-(e.g., 350° lags behind 10° by only 20°, whereas in "raw" form 35000 > 1000).
-- **`Coordinate`** — `==`, `!=`, `is_valid()` (also rejects the origin `(0,0)`),
+(e.g., 350 deg lags behind 10 deg by only 20 deg, whereas in "raw" form 35000 > 1000).
+- **`Coordinate`** - `==`, `!=`, `is_valid()` (also rejects the origin `(0,0)`),
 `distance_sq_to()`.
 
 Key recommendations:
 
 - Prefer typed comparisons (`a == b`) over comparing "raw" values.
-- Never mix units: `Speed` uses a single scale (value ×1000) for knots, km/h and m/s — compare or add values only **after** converting to the same unit, e.g. via `knots_x1000_to_kmh_x1000`.
+- Never mix units: `Speed` uses a single scale (value x1000) for knots, km/h and m/s - compare or add values only **after** converting to the same unit, e.g. via `knots_x1000_to_kmh_x1000`.
 
 ## Examples
-* BasicGPS: Simple GPS data output
+* BasicGPS: Simple GNSS data output
 * GPSToJSON: Parsing data and output in JSON format
-* GPSLogger: Writing GPS data to an SD card
+* GPSLogger: Writing GNSS data to an SD card
 * gps_daemon (POSIX): `SerialStream -> NMEAStreamReader -> Parser -> CSV`
 * gnss_dashboard (Linux, TUI): curses-based GNSS dashboard
 * freertos (host, POSIX port): producer/consumer tasks + FreeRTOS queue
@@ -170,7 +170,7 @@ only need to implement the abstract `light_nmea::Stream` interface
 
 Bundled examples:
 
-* [`examples/freertos/`](examples/freertos/) — FreeRTOS on the host
+* [`examples/freertos/`](examples/freertos/) - FreeRTOS on the host
   (POSIX port, no hardware required): a producer task reads an NMEA track
   from a file and sends bytes to a FreeRTOS queue; a consumer task parses
   them via `NMEAStreamReader` + `Parser`.
@@ -181,7 +181,7 @@ Bundled examples:
   ./build/freertos_nmea_example
   ```
 
-* [`examples/zephyr/`](examples/zephyr/) — Zephyr application: reads NMEA
+* [`examples/zephyr/`](examples/zephyr/) - Zephyr application: reads NMEA
   from UART via `uart_pipe`, accumulates bytes in a ring buffer and parses
   them in the main loop. Works on `native_sim` (input via terminal) and on
   real boards (build verified for nRF52840 DK, see `boards/` overlay).
@@ -191,11 +191,11 @@ Bundled examples:
   west build -b native_sim -d build/native_sim            # host (needs gcc-multilib)
   ```
 
-* [`examples/rtthread/`](examples/rtthread/) — RT-Thread application: reads
+* [`examples/rtthread/`](examples/rtthread/) - RT-Thread application: reads
   NMEA from a serial device (`rt_device`, interrupt RX + `rx_indicate`
   semaphore), accumulates bytes in a ring buffer and parses them in the main
   thread. Includes a built-in simulation feed (`LIGHTNMEA_SIM_FEED`) for
-  boards without a GPS attached (e.g. `qemu-vexpress-a9`).
+  boards without a GNSS attached (e.g. `qemu-vexpress-a9`).
   ```console
   # add examples/rtthread/ to the BSP tree, then in the BSP directory:
   menuconfig    # LightNMEA example -> LIGHTNMEA_UART_NAME / LIGHTNMEA_SIM_FEED
@@ -203,7 +203,7 @@ Bundled examples:
   ```
   See [`examples/rtthread/README.md`](examples/rtthread/README.md) for details.
 
-* [`examples/pico/`](examples/pico/) — Raspberry Pi Pico (RP2040) application:
+* [`examples/pico/`](examples/pico/) - Raspberry Pi Pico (RP2040) application:
   reads NMEA from a GNSS module (G10F-F30) wired to UART0 (GP0/GP1), parses it
   with `NMEAStreamReader` + `Parser` and prints positions over USB CDC.
   ```console
@@ -217,7 +217,7 @@ Bundled examples:
 
 An interactive terminal dashboard (4-window layout: positioning / GNSS parameters /
 motion dynamics / connection status) that reads data via a **serial port** (USB-CDC /
-USB-UART). Rewritten from the Python originals — `gnss_dashboard.py` and
+USB-UART). Rewritten from the Python originals - `gnss_dashboard.py` and
 `dash_utils.py` (see the MicroPython/Python version of the project):
 
 ```
@@ -256,24 +256,24 @@ Run:
 ./lib/LightNMEA/out/build/release/gnss_dashboard /dev/ttyUSB0 9600    # USB-UART adapter
 ```
 
-Exit with `q`/`Q`/`ESC`; errors are written to `mcu_debug.log`, the data log —
+Exit with `q`/`Q`/`ESC`; errors are written to `mcu_debug.log`, the data log -
 to `gnss_log.csv`.
 
 ## Performance
 
-Throughput is normalized to the CPU clock frequency (MHz) — and, conversely, expressed as **CPU cycles per packet** —
+Throughput is normalized to the CPU clock frequency (MHz) - and, conversely, expressed as **CPU cycles per packet** -
 which allows direct comparison of platforms with different clock frequencies.
 
-| Platform | Throughput | Normalized metrics (packets/s·MHz / cycles/packet) | Flash | RAM |
+| Platform | Throughput | Normalized metrics (packets/s*MHz / cycles/packet) | Flash | RAM |
 |----------|-----------|--------------------------------------|-------|-----|
-| x86_64 (Ryzen 7 2700, 3.2–4.1 GHz) | 7–14 M packets/s [1] | ~2000–4400 packets/s·MHz (≈230–510 cycles/packet) | — | — |
-| Cortex-M0+ (RP2040, 133 MHz) | 5–10x faster than floating-point parsers [2] | Measured on the target device [3] | ~1.3 KB | 52 B |
+| x86_64 (Ryzen 7 2700, 3.2-4.1 GHz) | 7-14 M packets/s [1] | ~2000-4400 packets/s*MHz (~230-510 cycles/packet) | - | - |
+| Cortex-M0+ (RP2040, 133 MHz) | 5-10x faster than floating-point parsers [2] | Measured on the target device [3] | ~1.3 KB | 52 B |
 
 [1] Measured with [`bench_parser`](benchmarks/bench_parser.cpp) (GCC 14.2, `-O3 -march=native`,
 mixed RMC/GGA/VTG/GLL stream): on average 7.15 M packets/s (8.2 M packets/s with an input stream
-containing 5% corrupted packets) on the machine hosting the repository; 11–14 M packets/s
+containing 5% corrupted packets) on the machine hosting the repository; 11-14 M packets/s
 on the reference bench (see the [root README](../../README.md#performance)).
-The ±20% spread is due to Turbo mode and system load.
+The +/-20% spread is due to Turbo mode and system load.
 
 [2] Compared with parsers that use floating-point arithmetic ([minmea](https://github.com/kosma/minmea),
 [TinyGPS++](https://github.com/mikalhart/TinyGPSPlus)): the Cortex-M0+ has no FPU, so multiplying
@@ -281,7 +281,7 @@ The ±20% spread is due to Turbo mode and system load.
 whereas the integer pipeline performs the same task in a few ALU operations.
 
 [3] Take measurements on your own board using the dedicated comparative benchmark
-firmware ([`benchmarks/firmware/`](benchmarks/firmware/)) — see the next section.
+firmware ([`benchmarks/firmware/`](benchmarks/firmware/)) - see the next section.
 
 ## Microcontroller benchmark (RP2040 / ESP32)
 
@@ -290,7 +290,7 @@ The repository includes a PlatformIO firmware that lets you compare **LightNMEA*
 [TinyGPSPlus](https://github.com/mikalhart/TinyGPSPlus) libraries **on the same board**
 ([`benchmarks/firmware/`](benchmarks/firmware/),
 source code: [`src/bench_compare_mcu.cpp`](benchmarks/firmware/src/bench_compare_mcu.cpp)).
-The firmware generates packets with the generator from `nav_gen.hpp` (RMC/GGA/VTG/GLL types) and outputs the best performance results (out of N iterations) via the serial port (115200 baud) in units of: packets/s, ns/packet, cycles/packet and packets/(s·MHz) (which allows direct comparison of systems with different clock frequencies).
+The firmware generates packets with the generator from `nav_gen.hpp` (RMC/GGA/VTG/GLL types) and outputs the best performance results (out of N iterations) via the serial port (115200 baud) in units of: packets/s, ns/packet, cycles/packet and packets/(s*MHz) (which allows direct comparison of systems with different clock frequencies).
 
 Requirements: PlatformIO (version 6.x).
 
@@ -311,7 +311,7 @@ BENCH_PACKET_COUNT=100000 ./build_bench_fw.sh pico
 The same benchmark is also available for **RTOS environments**: a FreeRTOS
 (POSIX port, host) and a Zephyr (native_sim / nRF52840 DK) version share the
 same portable core ([`benchmarks/rtos/`](benchmarks/rtos/),
-source code: [`bench_compare_rtos.hpp`](benchmarks/rtos/bench_compare_rtos.hpp)) —
+source code: [`bench_compare_rtos.hpp`](benchmarks/rtos/bench_compare_rtos.hpp)) -
 only the time source and output differ (`clock_gettime` / `k_cycle_get_32()`,
 `printf` / `printk`).
 
@@ -319,9 +319,9 @@ only the time source and output differ (`clock_gettime` / `k_cycle_get_32()`,
 > but the Arduino core for ESP32 (ESP-IDF HAL + newlib stdio) adds
 > a fixed ~280 KB regardless of the application code: that is about **22% of
 > the 1.31 MB application partition** compared to ~3.7% (78 KB) with the Pico SDK.
-> These are platform overheads, not parser code — the LightNMEA library itself takes
+> These are platform overheads, not parser code - the LightNMEA library itself takes
 > ~1.3 KB of Flash and 52 bytes of RAM. Do not directly compare the absolute numbers
-> of the two boards; use the normalized metrics (cycles/packet, packets/s·MHz)
+> of the two boards; use the normalized metrics (cycles/packet, packets/s*MHz)
 > that the benchmark outputs.
 
 # License
