@@ -1,6 +1,6 @@
 # Contributing to LightNMEA
 
-Спасибо за интерес к проекту! Ниже — правила и рекомендации для соавторов кода.
+Спасибо за интерес к проекту! Ниже - правила и рекомендации для соавторов кода.
 
 ## Быстрый старт
 
@@ -39,13 +39,13 @@ GitHub Actions (`.github/workflows/ci.yml`) автоматически пров�
 
 ```
 lib/LightNMEA/
-├── include/          # публичные заголовки (header-only ядро)
-├── src/              # компилируемые части (C API, Arduino-обёртка)
-├── examples/         # примеры (Arduino, POSIX, FreeRTOS, Zephyr)
-├── tests/            # unit-тесты и фаззинг
-├── benchmarks/       # бенчмарки (host, firmware, RTOS)
-├── scripts/          # вспомогательные скрипты
-└── esp-idf-component/ # компонент для ESP-IDF
+|-- include/          # публичные заголовки (header-only ядро)
+|-- src/              # компилируемые части (C API, Arduino-обёртка)
+|-- examples/         # примеры (Arduino, POSIX, FreeRTOS, Zephyr)
+|-- tests/            # unit-тесты и фаззинг
+|-- benchmarks/       # бенчмарки (host, firmware, RTOS)
+|-- scripts/          # вспомогательные скрипты
+`-- esp-idf-component/ # компонент для ESP-IDF
 ```
 
 ## Лицензия

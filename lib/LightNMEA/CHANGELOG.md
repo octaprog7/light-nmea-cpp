@@ -11,17 +11,17 @@
 
 - **Windows/MSVC**: явные `static_cast<uint8_t>` в `parse_coordinates()`
   (C4267 при `/W4 /WX`); `/wd4530` (инстанциации STL при `/EHs-c-`);
-  `_CRT_SECURE_NO_WARNINGS` (fopen → C4996);
+  `_CRT_SECURE_NO_WARNINGS` (fopen -> C4996);
   `test_c_api.c`: `(void)line` при NDEBUG и верное ожидание
   `lon_raw = 115166666` (ошибка была скрыта NDEBUG в Release).
-- **macOS/AppleClang**: `lightnmea_c.cpp` — direct-list-initialization
+- **macOS/AppleClang**: `lightnmea_c.cpp` - direct-list-initialization
   члена с explicit-конструктором (`impl{}`).
 - **Ubuntu/glibc**: проверка возвращаемого значения `freopen()` в
   `gnss_dashboard.cpp` (`warn_unused_result` + `-Werror`).
 - **Arduino IDE / ESP32**: убраны цифровые разделители (C++14) из
-  `types.hpp`/`utils.hpp` — совместимость с `gnu++11` (default ESP32
+  `types.hpp`/`utils.hpp` - совместимость с `gnu++11` (default ESP32
   Arduino core); `src/lightnmea_c.cpp` включает заголовки через
-  `../include/...` (include path arduino-cli — только `src/`).
+  `../include/...` (include path arduino-cli - только `src/`).
 - **PlatformIO**: `-Dtimegm=mktime` в `[common]` всех прошивок (newlib
   ESP32/ESP8266 не имеет `timegm()`).
 
@@ -30,14 +30,14 @@
 ### Added
 
 - **C API** ([`include/lightnmea_c.h`](include/lightnmea_c.h),
-  [`src/lightnmea_c.cpp`](src/lightnmea_c.cpp)) — обёртка для проектов на чистом C:
+  [`src/lightnmea_c.cpp`](src/lightnmea_c.cpp)) - обёртка для проектов на чистом C:
   `lightnmea_create/parse_line/get_data/destroy`, плоская структура
   `lightnmea_data_t` с целочисленными raw-полями. Пример:
   [`examples/c_api_example.c`](examples/c_api_example.c), тест:
   [`tests/test_c_api.c`](tests/test_c_api.c).
 - **Single-header** вариант ([`lightnmea_single.hpp`](lightnmea_single.hpp),
   генерация: [`scripts/amalgamate.py`](scripts/amalgamate.py)).
-- **ESP-IDF компонент** ([`esp-idf-component/`](esp-idf-component/)) — использование
+- **ESP-IDF компонент** ([`esp-idf-component/`](esp-idf-component/)) - использование
   без Arduino.
 - **RTOS-бенчмарки** ([`benchmarks/rtos/`](benchmarks/rtos/)): FreeRTOS (POSIX-порт),
   Zephyr (native_sim / nRF52840 DK), ESP32 D1 mini (FreeRTOS + ESP-IDF/Arduino).
@@ -58,14 +58,14 @@
   `pico` / `pico_demo`). Проверен на живом приёме (fix, 11 спутников).
 - **AVR-бенчмарки**: ATmega32 через AVRISP mkII ([`benchmarks/avr/`](benchmarks/avr/),
   включая [`brick-recovery.md`](benchmarks/avr/brick-recovery.md)) и переписанная
-  версия для Arduino UNO R3 / ATmega328P ([`benchmarks/uno/`](benchmarks/uno/)) —
+  версия для Arduino UNO R3 / ATmega328P ([`benchmarks/uno/`](benchmarks/uno/)) -
   прошивка через Optiboot без записи фьюзов. Результаты на ATmega328P @ 16 МГц:
   LightNMEA 2441 pkt/s (в ~3 раза быстрее minmea, в ~2.7 раза быстрее TinyGPSPlus).
 
 ### Changed
 
 - Проверка утечек памяти valgrind memcheck (модульные тесты + фаззинг,
-  50 000 мутаций) — ошибок и утечек нет; строка «пропущено (не установлен)»
+  50 000 мутаций) - ошибок и утечек нет; строка "пропущено (не установлен)"
   в таблице качества удалена.
 
 ## [1.0.0] - 2026
@@ -73,7 +73,7 @@
 ### Added
 
 - Header-only C++17 NMEA-парсер: RMC, GGA, VTG, GLL.
-- Целочисленная модель данных (без FPU): координаты 1e-7°, курс 1e-2°, скорость x1000.
+- Целочисленная модель данных (без FPU): координаты 1e-7 deg, курс 1e-2 deg, скорость x1000.
 - Поддержка Arduino IDE, PlatformIO, CMake.
 - Примеры: BasicGPS, GPSToJSON, GPSLogger (Arduino); stream/serial/tcp reader,
   gps_daemon, GNSS dashboard (POSIX).

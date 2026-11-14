@@ -428,7 +428,7 @@ inline bool GNSSData::from_csv(const std::string &line, GNSSData &out) noexcept 
 
   // Парсинг double без зависимости от локали! В ru_RU.UTF-8 strtod считает
   // десятичным разделителем ЗАПЯТУЮ, останавливается на точке "." и
-  // превращает "56.386344" в 56.0 -> на экране "56,000000". std::from_chars
+  // превращает "12.345678" в 12.0 -> на экране "12,000000". std::from_chars
   // всегда использует точку.
   auto to_double = [](const std::string &s) -> double {
     if (s.empty())
